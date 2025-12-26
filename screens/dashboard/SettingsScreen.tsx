@@ -31,8 +31,9 @@ const SettingsScreen: React.FC<NavProps> = ({ onNavigate }) => {
                     </h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Nome de Exibição</label>
+                            <label htmlFor="profileName" className="text-sm font-medium text-slate-700 dark:text-slate-300">Nome de Exibição</label>
                             <input
+                                id="profileName"
                                 type="text"
                                 value={profile.name}
                                 onChange={(e) => setProfile({ ...profile, name: e.target.value })}
@@ -40,8 +41,9 @@ const SettingsScreen: React.FC<NavProps> = ({ onNavigate }) => {
                             />
                         </div>
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">E-mail</label>
+                            <label htmlFor="profileEmail" className="text-sm font-medium text-slate-700 dark:text-slate-300">E-mail</label>
                             <input
+                                id="profileEmail"
                                 type="email"
                                 value={profile.email}
                                 onChange={(e) => setProfile({ ...profile, email: e.target.value })}
@@ -49,8 +51,9 @@ const SettingsScreen: React.FC<NavProps> = ({ onNavigate }) => {
                             />
                         </div>
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Telefone</label>
+                            <label htmlFor="profilePhone" className="text-sm font-medium text-slate-700 dark:text-slate-300">Telefone</label>
                             <input
+                                id="profilePhone"
                                 type="tel"
                                 value={profile.phone}
                                 onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
@@ -68,8 +71,9 @@ const SettingsScreen: React.FC<NavProps> = ({ onNavigate }) => {
                     </h2>
                     <div className="grid grid-cols-1 gap-6">
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Nome do Estabelecimento</label>
+                            <label htmlFor="businessName" className="text-sm font-medium text-slate-700 dark:text-slate-300">Nome do Estabelecimento</label>
                             <input
+                                id="businessName"
                                 type="text"
                                 value={business.name}
                                 onChange={(e) => setBusiness({ ...business, name: e.target.value })}
@@ -78,8 +82,9 @@ const SettingsScreen: React.FC<NavProps> = ({ onNavigate }) => {
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div className="space-y-2">
-                                <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Endereço</label>
+                                <label htmlFor="businessAddress" className="text-sm font-medium text-slate-700 dark:text-slate-300">Endereço</label>
                                 <input
+                                    id="businessAddress"
                                     type="text"
                                     value={business.address}
                                     onChange={(e) => setBusiness({ ...business, address: e.target.value })}
@@ -88,8 +93,9 @@ const SettingsScreen: React.FC<NavProps> = ({ onNavigate }) => {
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
-                                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Cidade</label>
+                                    <label htmlFor="businessCity" className="text-sm font-medium text-slate-700 dark:text-slate-300">Cidade</label>
                                     <input
+                                        id="businessCity"
                                         type="text"
                                         value={business.city}
                                         onChange={(e) => setBusiness({ ...business, city: e.target.value })}
@@ -97,8 +103,9 @@ const SettingsScreen: React.FC<NavProps> = ({ onNavigate }) => {
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Estado</label>
+                                    <label htmlFor="businessState" className="text-sm font-medium text-slate-700 dark:text-slate-300">Estado</label>
                                     <input
+                                        id="businessState"
                                         type="text"
                                         value={business.state}
                                         onChange={(e) => setBusiness({ ...business, state: e.target.value })}
