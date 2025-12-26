@@ -16,6 +16,7 @@ import ClientsScreen from './screens/dashboard/ClientsScreen';
 import ServicesScreen from './screens/dashboard/ServicesScreen';
 import ReportsScreen from './screens/dashboard/ReportsScreen';
 
+import MarketingScreen from './screens/dashboard/MarketingScreen';
 import SettingsScreen from './screens/dashboard/SettingsScreen';
 
 const App: React.FC = () => {
@@ -59,6 +60,7 @@ const App: React.FC = () => {
       case ScreenName.DASHBOARD_FINANCIAL:
         return <FinancialScreen onNavigate={navigate} />;
       case ScreenName.DASHBOARD_MARKETING:
+        return <MarketingScreen onNavigate={navigate} />;
       case ScreenName.DASHBOARD_REPORTS:
         return <ReportsScreen onNavigate={navigate} />;
       case ScreenName.DASHBOARD_SETTINGS:

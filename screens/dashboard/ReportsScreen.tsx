@@ -39,45 +39,50 @@ const ReportsScreen: React.FC<NavProps> = ({ onNavigate }) => {
                             <div className="h-48 flex items-center justify-center text-slate-400">Carregando...</div>
                         ) : (
                             <div className="flex items-end gap-2 h-48">
-                                {dailyMetrics.map((day) => (
-                                    <div key={day.date} className="flex-1 flex flex-col items-center gap-1 group">
+                                {dailyMetrics.map((day, index) => (
+                                    <div key={day.date} className="flex-1 flex flex-col items-center gap-1 group relative">
                                         <div
-                                            className="w-full bg-primary/20 hover:bg-primary transition-all rounded-t-sm relative"
-                                            style={{ height: `${(day.revenue / maxRevenue) * 100}%` }}
+                                            className={`w-full transition-all rounded-t-sm relative ${index % 2 === 0 ? 'bg-primary' : 'bg-primary/60'} hover:bg-primary-dark`}
+                                            style={{ height: `${Math.max((day.revenue / maxRevenue) * 100, 5)}%` }} // Ensure at least 5% height for visibility
                                         >
-                                            <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-black text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">
-                                                R${day.revenue}
+                                            {/* Tooltip */}
+                                            <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[10px] px-2 py-1 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
+                                                <p className="font-bold">{new Date(day.date).toLocaleDateString()}</p>
+                                                R$ {day.revenue.toFixed(2)}
                                             </div>
                                         </div>
-                                        <span className="text-[10px] text-slate-400 rotate-90 origin-left translate-y-4 w-4">{day.date.split('-')[2]}</span>
                                     </div>
                                 ))}
                             </div>
                         )}
+                        <div className="flex justify-between mt-2 text-xs text-slate-400 border-t border-slate-100 dark:border-white/5 pt-2">
+                            <span>30 dias atrás</span>
+                            <span>Hoje</span>
+                        </div>
                     </div>
 
                     {/* Top Services */}
                     <div className="bg-white dark:bg-surface-dark p-6 rounded-2xl shadow-sm border border-[#d2e5dd] dark:border-[#2a4035]">
                         <h3 className="font-bold text-slate-800 dark:text-white mb-6">Serviços Mais Rentáveis</h3>
-                        <div className="flex flex-col gap-4">
+                        <div className="flex flex-col gap-5">
                             {loading ? (
                                 <p className="text-slate-400">Carregando...</p>
                             ) : topServices.length === 0 ? (
-                                <p className="text-slate-400">Sem dados.</p>
+                                <p className="text-slate-400 text-sm">Sem dados suficientes para exibir o ranking.</p>
                             ) : (
                                 topServices.map((service, i) => (
-                                    <div key={service.name} className="flex items-center gap-4">
-                                        <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-white/10 flex items-center justify-center font-bold text-xs text-slate-500">
+                                    <div key={service.name} className="flex items-center gap-4 group">
+                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs ${i === 0 ? 'bg-yellow-100 text-yellow-700' : 'bg-slate-100 text-slate-500 dark:bg-white/10'}`}>
                                             {i + 1}
                                         </div>
                                         <div className="flex-1">
-                                            <div className="flex justify-between text-sm mb-1">
-                                                <span className="font-medium text-slate-800 dark:text-white">{service.name}</span>
-                                                <span className="text-slate-500">R$ {service.revenue.toFixed(2)}</span>
+                                            <div className="flex justify-between text-sm mb-1.5">
+                                                <span className="font-medium text-slate-800 dark:text-white group-hover:text-primary transition-colors">{service.name}</span>
+                                                <span className="text-slate-500 font-semibold">R$ {service.revenue.toFixed(2)}</span>
                                             </div>
                                             <div className="w-full h-2 bg-slate-100 dark:bg-white/5 rounded-full overflow-hidden">
                                                 <div
-                                                    className="h-full bg-green-500 rounded-full"
+                                                    className={`h-full rounded-full transition-all duration-500 ${i === 0 ? 'bg-primary' : 'bg-primary/40'}`}
                                                     style={{ width: `${(service.revenue / (topServices[0]?.revenue || 1)) * 100}%` }}
                                                 ></div>
                                             </div>
