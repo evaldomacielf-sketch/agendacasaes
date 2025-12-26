@@ -25,6 +25,9 @@
       ]
     },
     "allowImportingTsExtensions": true,
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
     "noEmit": true
   },
   "include": [

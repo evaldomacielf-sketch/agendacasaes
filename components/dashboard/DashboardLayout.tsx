@@ -5,7 +5,7 @@ import { ScreenName } from '../../types';
 interface DashboardLayoutProps {
     children: React.ReactNode;
     currentScreen: ScreenName;
-    onNavigate: (screen: ScreenName | string) => void;
+    onNavigate: (screen: ScreenName) => void;
     title?: string;
 }
 

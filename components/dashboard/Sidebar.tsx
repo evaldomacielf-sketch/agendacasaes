@@ -3,7 +3,7 @@ import { ScreenName } from '../../types';
 
 interface SidebarProps {
     currentScreen: ScreenName;
-    onNavigate: (screen: ScreenName | string) => void; // string for internal dashboard routes not in enum yet
+    onNavigate: (screen: ScreenName) => void;
     isMobileOpen: boolean;
     onMobileClose: () => void;
     className?: string;
@@ -61,15 +61,15 @@ const Sidebar: React.FC<SidebarProps> = ({
                         <button
                             key={item.label}
                             onClick={() => {
-                                onNavigate(item.target as any);
+                                onNavigate(item.target);
                                 onMobileClose();
                             }}
-                            className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${currentScreen === item.target as any
+                            className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${currentScreen === item.target
                                 ? 'bg-primary/10 text-primary'
                                 : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white'
                                 }`}
                         >
-                            <span className={`material-symbols-outlined text-[20px] ${currentScreen === item.target as any ? 'filled-icon' : ''}`}>
+                            <span className={`material-symbols-outlined text-[20px] ${currentScreen === item.target ? 'filled-icon' : ''}`}>
                                 {item.icon}
                             </span>
                             {item.label}
