@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { NavProps, ScreenName } from '../../../types';
+import { NavProps, ScreenName } from '../../types';
 import DashboardLayout from '../../components/dashboard/DashboardLayout';
 import { useServices, Service } from '../../hooks/useServices';
 import { useAI } from '../../hooks/useAI';
@@ -99,7 +99,7 @@ const ServicesScreen: React.FC<NavProps> = ({ onNavigate }) => {
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {Object.entries(groupedServices).map(([category, items]) => (
+                        {Object.entries(groupedServices).map(([category, items]: [string, Service[]]) => (
                             <div key={category} className="bg-white dark:bg-surface-dark rounded-2xl shadow-sm border border-[#d2e5dd] dark:border-[#2a4035] overflow-hidden">
                                 <div className="bg-slate-50 dark:bg-white/5 px-6 py-3 border-b border-[#d2e5dd] dark:border-[#2a4035]">
                                     <h3 className="font-bold text-slate-800 dark:text-white uppercase tracking-wider text-xs">{category}</h3>

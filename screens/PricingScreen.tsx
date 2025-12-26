@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { NavProps, ScreenName } from '../../types';
+import { NavProps, ScreenName } from '../types';
 
 const PricingScreen: React.FC<NavProps> = ({ onNavigate }) => {
   const [period, setPeriod] = useState<'monthly' | 'yearly'>('monthly');

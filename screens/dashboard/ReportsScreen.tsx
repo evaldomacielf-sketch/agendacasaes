@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavProps, ScreenName } from '../../../types';
+import { NavProps, ScreenName } from '../../types';
 import DashboardLayout from '../../components/dashboard/DashboardLayout';
 import { useReports } from '../../hooks/useReports';
 

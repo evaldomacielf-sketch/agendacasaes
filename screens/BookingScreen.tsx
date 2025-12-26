@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { NavProps, ScreenName } from '../../types';
+import { NavProps, ScreenName } from '../types';
 
 import Layout from '../components/Layout';
 import Navbar from '../components/Navbar';

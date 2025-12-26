@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavProps, ScreenName } from '../../types';
+import { NavProps, ScreenName } from '../types';
 
 const TestimonialsScreen: React.FC<NavProps> = ({ onNavigate }) => {
     return (

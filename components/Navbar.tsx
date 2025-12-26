@@ -1,5 +1,5 @@
 import React from 'react';
-import { ScreenName } from '../../types';
+import { ScreenName } from '../types';
 
 interface NavbarProps {
     onNavigate: (screen: ScreenName) => void;

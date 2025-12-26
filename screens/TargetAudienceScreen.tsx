@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavProps, ScreenName } from '../../types';
+import { NavProps, ScreenName } from '../types';
 
 const TargetAudienceScreen: React.FC<NavProps> = ({ onNavigate }) => {
   const cards = [

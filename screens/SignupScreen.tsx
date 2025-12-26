@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { NavProps, ScreenName } from '../../types';
+import { NavProps, ScreenName } from '../types';
 import { supabase } from '../utils/supabaseClient';
 
 const SignupScreen: React.FC<NavProps> = ({ onNavigate }) => {

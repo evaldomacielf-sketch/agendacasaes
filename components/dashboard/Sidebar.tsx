@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ScreenName } from '../../../types';
+import { ScreenName } from '../../types';
 
 interface SidebarProps {
     currentScreen: ScreenName;

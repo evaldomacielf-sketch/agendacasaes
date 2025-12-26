@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ScreenName } from '../types';
+import { ScreenName } from './types';
 import LandingScreen from './screens/LandingScreen';
 import FeaturesScreen from './screens/FeaturesScreen';
 import LoginScreen from './screens/LoginScreen';

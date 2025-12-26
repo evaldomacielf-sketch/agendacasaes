@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import Sidebar from './Sidebar';
-import { ScreenName } from '../../../types';
+import { ScreenName } from '../../types';
 
 interface DashboardLayoutProps {
     children: React.ReactNode;
