@@ -8,12 +8,16 @@ export interface Recommendation {
     reason: string;
 }
 
+import { logger } from '../utils/logger';
+
 export const useAI = () => {
     const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
     const [loading, setLoading] = useState(false);
 
     const searchServices = async (query: string, allServices: Service[]) => {
         setLoading(true);
+        logger.info('AI Search Initiated', { query });
+
         try {
             // 1. Try to call the Edge Function (Real Implementation)
             const { data, error } = await supabase.functions.invoke('recommend', {
@@ -21,6 +25,7 @@ export const useAI = () => {
             });
 
             if (!error && data) {
+                logger.info('Edge Function returned results', { resultCount: data.length });
                 setRecommendations(data.map((item: any) => ({
                     service: item, // item contains service fields
                     score: item.similarity,
@@ -29,7 +34,7 @@ export const useAI = () => {
                 return;
             }
 
-            console.warn('Edge Function failed or unavailable, falling back to local simulation.', error);
+            logger.warn('Edge Function failed or unavailable, falling back to local simulation.', { error });
 
             // 2. Fallback: Local Keyword Matching (Simulation for Demo)
             // This ensures the user sees functionality even without the backend deployed.
@@ -60,9 +65,10 @@ export const useAI = () => {
                 }));
 
             setRecommendations(top3);
+            logger.info('Local fallback search completed', { resultCount: top3.length });
 
         } catch (err) {
-            console.error('AI Search Error:', err);
+            logger.error('AI Search Critical Error', err, { query });
         } finally {
             setLoading(false);
         }
