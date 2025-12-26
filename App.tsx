@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import { ScreenName } from './types';
 import LandingScreen from './screens/LandingScreen';
 import FeaturesScreen from './screens/FeaturesScreen';
@@ -72,6 +73,7 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-background-light dark:bg-background-dark font-sans text-text-main">
       {renderScreen()}
+      <SpeedInsights />
 
       {/* Navigation Dev Tool */}
       <div className="fixed bottom-4 right-4 z-[100] group">
