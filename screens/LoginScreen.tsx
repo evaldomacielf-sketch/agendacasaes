@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { NavProps, ScreenName } from '../types';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../utils/supabaseClient';
 
-const LoginScreen: React.FC<NavProps> = ({ onNavigate }) => {
+const LoginScreen: React.FC = () => {
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -22,7 +23,7 @@ const LoginScreen: React.FC<NavProps> = ({ onNavigate }) => {
       if (loginError) throw loginError;
 
       if (data.session) {
-        onNavigate(ScreenName.MAIN_FEATURES);
+        navigate('/dashboard');
       }
     } catch (err: any) {
       console.error("Login error:", err);
@@ -42,7 +43,7 @@ const LoginScreen: React.FC<NavProps> = ({ onNavigate }) => {
         >
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
           <div className="absolute bottom-4 left-4">
-            <button onClick={() => onNavigate(ScreenName.LANDING)} className="text-white/80 hover:text-white flex items-center gap-1 mb-2 text-xs uppercase tracking-wider font-medium">
+            <button onClick={() => navigate('/')} className="text-white/80 hover:text-white flex items-center gap-1 mb-2 text-xs uppercase tracking-wider font-medium">
               <span className="material-symbols-outlined text-[16px]">arrow_back</span>
               AgendaCasaES
             </button>
@@ -119,7 +120,7 @@ const LoginScreen: React.FC<NavProps> = ({ onNavigate }) => {
       <div className="px-6 pb-8 pt-4 mt-auto">
         <div className="flex items-center justify-center gap-1.5">
           <span className="text-slate-500 dark:text-slate-400 text-sm">Não tem uma conta?</span>
-          <button onClick={() => onNavigate(ScreenName.SIGNUP)} className="text-primary hover:text-primary-dark font-semibold text-sm">Criar conta grátis</button>
+          <button onClick={() => navigate('/signup')} className="text-primary hover:text-primary-dark font-semibold text-sm">Criar conta grátis</button>
         </div>
       </div>
     </div>

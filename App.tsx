@@ -1,5 +1,11 @@
-import React, { useState } from 'react';
+import React, { Suspense } from 'react';
+import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
+import * as Sentry from "@sentry/react";
+import { AuthProvider } from './contexts/AuthContext';
 import { ScreenName } from './types';
+import LoadingSpinner from './components/LoadingSpinner';
+
+// Static Imports for Critical Path
 import LandingScreen from './screens/LandingScreen';
 import FeaturesScreen from './screens/FeaturesScreen';
 import LoginScreen from './screens/LoginScreen';
@@ -8,95 +14,103 @@ import TargetAudienceScreen from './screens/TargetAudienceScreen';
 import PricingScreen from './screens/PricingScreen';
 import FAQScreen from './screens/FAQScreen';
 import TestimonialsScreen from './screens/TestimonialsScreen';
-import MainFeaturesScreen from './screens/MainFeaturesScreen';
 import BookingScreen from './screens/BookingScreen';
-import AgendaScreen from './screens/dashboard/AgendaScreen';
-import FinancialScreen from './screens/dashboard/FinancialScreen';
-import ClientsScreen from './screens/dashboard/ClientsScreen';
-import ServicesScreen from './screens/dashboard/ServicesScreen';
-import ReportsScreen from './screens/dashboard/ReportsScreen';
+import DashboardLayout from './components/dashboard/DashboardLayout';
+import { ProtectedRoute } from './components/ProtectedRoute';
 
-import MarketingScreen from './screens/dashboard/MarketingScreen';
-import SettingsScreen from './screens/dashboard/SettingsScreen';
+// Lazy Imports for Dashboard Screens (Code Splitting)
+const MainFeaturesScreen = React.lazy(() => import('./screens/MainFeaturesScreen'));
+const AgendaScreen = React.lazy(() => import('./screens/dashboard/AgendaScreen'));
+const FinancialScreen = React.lazy(() => import('./screens/dashboard/FinancialScreen'));
+const ClientsScreen = React.lazy(() => import('./screens/dashboard/ClientsScreen'));
+const ServicesScreen = React.lazy(() => import('./screens/dashboard/ServicesScreen'));
+const ReportsScreen = React.lazy(() => import('./screens/dashboard/ReportsScreen'));
+const MarketingScreen = React.lazy(() => import('./screens/dashboard/MarketingScreen'));
+const SettingsScreen = React.lazy(() => import('./screens/dashboard/SettingsScreen'));
 
-const App: React.FC = () => {
-  const [currentScreen, setCurrentScreen] = useState<ScreenName>(ScreenName.LANDING);
+// Map ScreenName to URL paths
+const SCREEN_PATHS: Record<ScreenName, string> = {
+  [ScreenName.LANDING]: '/',
+  [ScreenName.FEATURES]: '/features',
+  [ScreenName.SIGNUP]: '/signup',
+  [ScreenName.LOGIN]: '/login',
+  [ScreenName.TARGET_AUDIENCE]: '/target-audience',
+  [ScreenName.PRICING]: '/pricing',
+  [ScreenName.FAQ]: '/faq',
+  [ScreenName.TESTIMONIALS]: '/testimonials',
+  [ScreenName.BOOKING]: '/booking',
+  // Dashboard routes
+  [ScreenName.MAIN_FEATURES]: '/dashboard',
+  [ScreenName.DASHBOARD]: '/dashboard', // Fallback
+  [ScreenName.DASHBOARD_AGENDA]: '/dashboard/agenda',
+  [ScreenName.DASHBOARD_CLIENTS]: '/dashboard/clients',
+  [ScreenName.DASHBOARD_SERVICES]: '/dashboard/services',
+  [ScreenName.DASHBOARD_FINANCIAL]: '/dashboard/financial',
+  [ScreenName.DASHBOARD_MARKETING]: '/dashboard/marketing',
+  [ScreenName.DASHBOARD_REPORTS]: '/dashboard/reports',
+  [ScreenName.DASHBOARD_SETTINGS]: '/dashboard/settings',
+};
 
-  const navigate = (screen: ScreenName) => {
-    setCurrentScreen(screen);
-    window.scrollTo(0, 0);
-  };
+// Wrapper to provide onNavigate prop to legacy components
+const LegacyScreenWrapper: React.FC<{ Component: React.ElementType }> = ({ Component }) => {
+  const navigate = useNavigate();
 
-  const renderScreen = () => {
-    switch (currentScreen) {
-      case ScreenName.LANDING:
-        return <LandingScreen onNavigate={navigate} />;
-      case ScreenName.FEATURES:
-        return <FeaturesScreen onNavigate={navigate} />;
-      case ScreenName.LOGIN:
-        return <LoginScreen onNavigate={navigate} />;
-      case ScreenName.SIGNUP:
-        return <SignupScreen onNavigate={navigate} />;
-      case ScreenName.TARGET_AUDIENCE:
-        return <TargetAudienceScreen onNavigate={navigate} />;
-      case ScreenName.PRICING:
-        return <PricingScreen onNavigate={navigate} />;
-      case ScreenName.FAQ:
-        return <FAQScreen onNavigate={navigate} />;
-      case ScreenName.TESTIMONIALS:
-        return <TestimonialsScreen onNavigate={navigate} />;
-      case ScreenName.MAIN_FEATURES:
-        return <MainFeaturesScreen onNavigate={navigate} />;
-      case ScreenName.BOOKING:
-        return <BookingScreen onNavigate={navigate} />;
-
-      // Dashboard Routes
-      case ScreenName.DASHBOARD_AGENDA:
-        return <AgendaScreen onNavigate={navigate} />;
-      case ScreenName.DASHBOARD_CLIENTS:
-        return <ClientsScreen onNavigate={navigate} />;
-      case ScreenName.DASHBOARD_SERVICES:
-        return <ServicesScreen onNavigate={navigate} />;
-      case ScreenName.DASHBOARD_FINANCIAL:
-        return <FinancialScreen onNavigate={navigate} />;
-      case ScreenName.DASHBOARD_MARKETING:
-        return <MarketingScreen onNavigate={navigate} />;
-      case ScreenName.DASHBOARD_REPORTS:
-        return <ReportsScreen onNavigate={navigate} />;
-      case ScreenName.DASHBOARD_SETTINGS:
-        return <SettingsScreen onNavigate={navigate} />;
-
-      default:
-        return <LandingScreen onNavigate={navigate} />;
+  const onNavigate = (screen: ScreenName) => {
+    const path = SCREEN_PATHS[screen];
+    if (path) {
+      navigate(path);
+      window.scrollTo(0, 0);
+    } else {
+      console.warn(`No path found for screen: ${screen}`);
     }
   };
 
-  return (
-    <div className="min-h-screen bg-background-light dark:bg-background-dark font-sans text-text-main">
-      {renderScreen()}
+  return <Component onNavigate={onNavigate} />;
+};
 
-      {/* Navigation Dev Tool */}
-      <div className="fixed bottom-4 right-4 z-[100] group">
-        <button className="bg-primary hover:bg-primary-dark text-white rounded-full p-3 shadow-lg transition-all flex items-center justify-center">
-          <span className="material-symbols-outlined">layers</span>
-        </button>
-        <div className="absolute bottom-14 right-0 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 p-2 hidden group-hover:block w-48 max-h-[80vh] overflow-y-auto">
-          <p className="px-3 py-2 text-xs font-bold text-gray-400 uppercase tracking-wider">Navigate Screens</p>
-          {Object.values(ScreenName).map((screen) => (
-            <button
-              key={screen}
-              onClick={() => navigate(screen)}
-              className={`w-full text-left px-3 py-2 text-sm rounded-md transition-colors ${currentScreen === screen
-                ? 'bg-primary/10 text-primary font-bold'
-                : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                }`}
-            >
-              {screen.replace(/_/g, ' ')}
-            </button>
-          ))}
-        </div>
-      </div>
-    </div>
+const App: React.FC = () => {
+  return (
+    <Sentry.ErrorBoundary fallback={<div className="flex items-center justify-center h-screen text-red-600">Um erro inesperado ocorreu.</div>}>
+      <AuthProvider>
+        <BrowserRouter>
+          <div className="min-h-screen bg-background-light dark:bg-background-dark font-sans text-text-main">
+            <Suspense fallback={<LoadingSpinner />}>
+              <Routes>
+                {/* Public Routes */}
+                <Route path="/" element={<LegacyScreenWrapper Component={LandingScreen} />} />
+                <Route path="/features" element={<LegacyScreenWrapper Component={FeaturesScreen} />} />
+                <Route path="/target-audience" element={<LegacyScreenWrapper Component={TargetAudienceScreen} />} />
+                <Route path="/pricing" element={<LegacyScreenWrapper Component={PricingScreen} />} />
+                <Route path="/faq" element={<LegacyScreenWrapper Component={FAQScreen} />} />
+                <Route path="/testimonials" element={<LegacyScreenWrapper Component={TestimonialsScreen} />} />
+                <Route path="/booking" element={<LegacyScreenWrapper Component={BookingScreen} />} />
+
+                {/* Auth Routes */}
+                <Route path="/login" element={<LoginScreen />} />
+                <Route path="/signup" element={<SignupScreen />} />
+
+                {/* Protected Dashboard Routes */}
+                <Route element={<ProtectedRoute />}>
+                  <Route path="/dashboard" element={<DashboardLayout />}>
+                    <Route index element={<LegacyScreenWrapper Component={MainFeaturesScreen} />} />
+                    <Route path="agenda" element={<LegacyScreenWrapper Component={AgendaScreen} />} />
+                    <Route path="clients" element={<LegacyScreenWrapper Component={ClientsScreen} />} />
+                    <Route path="services" element={<LegacyScreenWrapper Component={ServicesScreen} />} />
+                    <Route path="financial" element={<LegacyScreenWrapper Component={FinancialScreen} />} />
+                    <Route path="marketing" element={<LegacyScreenWrapper Component={MarketingScreen} />} />
+                    <Route path="reports" element={<LegacyScreenWrapper Component={ReportsScreen} />} />
+                    <Route path="settings" element={<LegacyScreenWrapper Component={SettingsScreen} />} />
+                  </Route>
+                </Route>
+
+                {/* Fallback */}
+                <Route path="*" element={<LegacyScreenWrapper Component={LandingScreen} />} />
+              </Routes>
+            </Suspense>
+          </div>
+        </BrowserRouter>
+      </AuthProvider>
+    </Sentry.ErrorBoundary>
   );
 };
 

@@ -1,27 +1,27 @@
 import React, { useState } from 'react';
 import Sidebar from './Sidebar';
-import { ScreenName } from '../../types';
+import { Outlet, useLocation } from 'react-router-dom';
 
-interface DashboardLayoutProps {
-    children: React.ReactNode;
-    currentScreen: ScreenName;
-    onNavigate: (screen: ScreenName) => void;
-    title?: string;
-}
+const SCREEN_TITLES: Record<string, string> = {
+    '/dashboard': 'Visão Geral',
+    '/dashboard/agenda': 'Agenda',
+    '/dashboard/clients': 'Clientes',
+    '/dashboard/services': 'Serviços',
+    '/dashboard/financial': 'Financeiro',
+    '/dashboard/marketing': 'Marketing',
+    '/dashboard/reports': 'Relatórios',
+    '/dashboard/settings': 'Configurações',
+};
 
-const DashboardLayout: React.FC<DashboardLayoutProps> = ({
-    children,
-    currentScreen,
-    onNavigate,
-    title
-}) => {
+const DashboardLayout: React.FC = () => {
+    const { pathname } = useLocation();
+    const title = SCREEN_TITLES[pathname] || 'AgendaCasaES';
+
     const [isMobileOpen, setIsMobileOpen] = useState(false);
 
     return (
         <div className="flex h-screen bg-background-light dark:bg-background-dark outline-none">
             <Sidebar
-                currentScreen={currentScreen}
-                onNavigate={onNavigate}
                 isMobileOpen={isMobileOpen}
                 onMobileClose={() => setIsMobileOpen(false)}
             />
@@ -37,7 +37,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                             <span className="material-symbols-outlined">menu</span>
                         </button>
                         <h1 className="text-xl font-bold text-slate-900 dark:text-white">
-                            {title || 'Visão Geral'}
+                            {title || 'AgendaCasaES'}
                         </h1>
                     </div>
 
@@ -54,7 +54,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                 {/* Main Content */}
                 <main className="flex-1 overflow-y-auto p-4 lg:p-8">
                     <div className="mx-auto max-w-6xl">
-                        {children}
+                        <Outlet />
                     </div>
                 </main>
             </div>

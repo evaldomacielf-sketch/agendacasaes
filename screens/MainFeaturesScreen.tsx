@@ -1,14 +1,9 @@
 import React from 'react';
 import { NavProps, ScreenName } from '../types';
-import DashboardLayout from '../components/dashboard/DashboardLayout';
-
 const MainFeaturesScreen: React.FC<NavProps> = ({ onNavigate }) => {
     return (
-        <DashboardLayout
-            currentScreen={ScreenName.MAIN_FEATURES}
-            onNavigate={onNavigate}
-            title="Visão Geral"
-        >
+        <div>
+            <h1 className="text-2xl font-bold mb-6 text-slate-900 dark:text-white">Visão Geral</h1>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
                 {/* Stat Cards Placeholder */}
                 {['Agendamentos', 'Faturamento', 'Novos Clientes', 'Taxa de Retorno'].map((stat) => (
@@ -25,7 +20,7 @@ const MainFeaturesScreen: React.FC<NavProps> = ({ onNavigate }) => {
                     <p>Gráficos de desempenho aparecerão aqui (Fase 3)</p>
                 </div>
             </div>
-        </DashboardLayout>
+        </div>
     );
 };
 

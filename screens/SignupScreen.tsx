@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
-import { NavProps, ScreenName } from '../types';
-import { supabase } from '../utils/supabaseClient';
+import { PhoneInput } from '../components/PhoneInput';
 
-const SignupScreen: React.FC<NavProps> = ({ onNavigate }) => {
+const SignupScreen: React.FC = () => {
+  const navigate = useNavigate();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [nomeSalao, setNomeSalao] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -13,6 +14,17 @@ const SignupScreen: React.FC<NavProps> = ({ onNavigate }) => {
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+
+    // Validação simples de frontend
+    if (!phone || phone.replace(/\D/g, '').length < 10) {
+      setError("Por favor, insira um telefone válido com DDD.");
+      return;
+    }
+
+    if (!nomeSalao.trim()) {
+      setError("Por favor, insira o nome do seu estabelecimento.");
+      return;
+    }
 
     if (password !== confirmPassword) {
       setError("As senhas não coincidem.");
@@ -32,6 +44,8 @@ const SignupScreen: React.FC<NavProps> = ({ onNavigate }) => {
         options: {
           data: {
             full_name: name,
+            phone: phone, // Lido pelo Trigger
+            nome_salao: nomeSalao, // Lido pelo Trigger
           },
         },
       });
@@ -40,7 +54,7 @@ const SignupScreen: React.FC<NavProps> = ({ onNavigate }) => {
 
       if (data.user) {
         alert("Conta criada com sucesso! Verifique seu e-mail para confirmar.");
-        onNavigate(ScreenName.LOGIN);
+        navigate('/login');
       }
     } catch (err: any) {
       console.error("Signup error:", err);
@@ -53,7 +67,7 @@ const SignupScreen: React.FC<NavProps> = ({ onNavigate }) => {
   return (
     <div className="relative flex min-h-screen w-full flex-col max-w-md mx-auto bg-background-light dark:bg-background-dark">
       <div className="flex items-center p-4 pb-2 justify-between sticky top-0 z-10 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-md">
-        <button onClick={() => onNavigate(ScreenName.LANDING)} className="flex size-12 items-center justify-center rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors text-slate-900 dark:text-white">
+        <button onClick={() => navigate('/')} className="flex size-12 items-center justify-center rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors text-slate-900 dark:text-white">
           <span className="material-symbols-outlined">arrow_back_ios_new</span>
         </button>
       </div>
@@ -88,6 +102,25 @@ const SignupScreen: React.FC<NavProps> = ({ onNavigate }) => {
               </span>
             </div>
           </div>
+
+          <div className="flex flex-col gap-2">
+            <label className="text-slate-900 dark:text-gray-200 text-sm font-medium">Nome do Estabelecimento</label>
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Ex: Studio Glamour"
+                value={nomeSalao}
+                onChange={(e) => setNomeSalao(e.target.value)}
+                required
+                className="w-full rounded-xl border border-[#d2e5dd] dark:border-[#2a4035] bg-surface-light dark:bg-surface-dark focus:border-primary focus:ring-1 focus:ring-primary h-14 px-4 text-base text-slate-900 dark:text-white shadow-sm"
+              />
+              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-primary pointer-events-none">
+                <span className="material-symbols-outlined filled-icon text-[20px]">storefront</span>
+              </span>
+            </div>
+          </div>
+
+          <PhoneInput value={phone} onChange={setPhone} />
 
           <div className="flex flex-col gap-2">
             <label className="text-slate-900 dark:text-gray-200 text-sm font-medium">E-mail</label>
@@ -150,7 +183,7 @@ const SignupScreen: React.FC<NavProps> = ({ onNavigate }) => {
 
         <div className="flex justify-center py-4 border-t border-gray-100 dark:border-white/5 mt-8">
           <p className="text-sm text-slate-900 dark:text-gray-300">
-            Já tem uma conta? <button onClick={() => onNavigate(ScreenName.LOGIN)} className="font-bold text-primary hover:text-primary/80 ml-1">Entrar</button>
+            Já tem uma conta? <button onClick={() => navigate('/login')} className="font-bold text-primary hover:text-primary/80 ml-1">Entrar</button>
           </p>
         </div>
       </main>

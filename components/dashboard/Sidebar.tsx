@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
-import { ScreenName } from '../../types';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface SidebarProps {
-    currentScreen: ScreenName;
-    onNavigate: (screen: ScreenName) => void;
     isMobileOpen: boolean;
     onMobileClose: () => void;
     className?: string;
@@ -11,23 +10,25 @@ interface SidebarProps {
 }
 
 const menuItems = [
-    { label: 'Visão Geral', icon: 'dashboard', target: ScreenName.MAIN_FEATURES },
-    { label: 'Agenda', icon: 'calendar_today', target: ScreenName.DASHBOARD_AGENDA },
-    { label: 'Clientes', icon: 'groups', target: ScreenName.DASHBOARD_CLIENTS },
-    { label: 'Serviços', icon: 'spa', target: ScreenName.DASHBOARD_SERVICES },
-    { label: 'Financeiro', icon: 'payments', target: ScreenName.DASHBOARD_FINANCIAL },
-    { label: 'Marketing', icon: 'campaign', target: ScreenName.DASHBOARD_MARKETING },
-    { label: 'Relatórios', icon: 'bar_chart', target: ScreenName.DASHBOARD_REPORTS },
-    { label: 'Configurações', icon: 'settings', target: ScreenName.DASHBOARD_SETTINGS },
+    { label: 'Visão Geral', icon: 'dashboard', path: '/dashboard' },
+    { label: 'Agenda', icon: 'calendar_today', path: '/dashboard/agenda' },
+    { label: 'Clientes', icon: 'groups', path: '/dashboard/clients' },
+    { label: 'Serviços', icon: 'spa', path: '/dashboard/services' },
+    { label: 'Financeiro', icon: 'payments', path: '/dashboard/financial' },
+    { label: 'Marketing', icon: 'campaign', path: '/dashboard/marketing' },
+    { label: 'Relatórios', icon: 'bar_chart', path: '/dashboard/reports' },
+    { label: 'Configurações', icon: 'settings', path: '/dashboard/settings' },
 ];
 
 const Sidebar: React.FC<SidebarProps> = ({
-    currentScreen,
-    onNavigate,
     isMobileOpen,
     onMobileClose,
     className = ''
 }) => {
+    const navigate = useNavigate();
+    const location = useLocation();
+    const { signOut } = useAuth();
+
     return (
         <>
             {/* Mobile Overlay */}
@@ -57,24 +58,43 @@ const Sidebar: React.FC<SidebarProps> = ({
                 </div>
 
                 <nav className="p-4 space-y-1 overflow-y-auto h-[calc(100vh-4rem)]">
-                    {menuItems.map((item) => (
+                    {menuItems.map((item) => {
+                        // Check if active (exact match for root /dashboard, or startsWith for others if needed, but here exact paths are distinct enough unless nested further)
+                        const isActive = location.pathname === item.path || (item.path === '/dashboard' && location.pathname === '/dashboard/');
+
+                        return (
+                            <button
+                                key={item.label}
+                                onClick={() => {
+                                    navigate(item.path);
+                                    onMobileClose();
+                                }}
+                                className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${isActive
+                                    ? 'bg-primary/10 text-primary'
+                                    : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white'
+                                    }`}
+                            >
+                                <span className={`material-symbols-outlined text-[20px] ${isActive ? 'filled-icon' : ''}`}>
+                                    {item.icon}
+                                </span>
+                                {item.label}
+                            </button>
+                        );
+                    })}
+
+                    <div className="pt-4 mt-4 border-t border-[#d2e5dd] dark:border-[#2a4035]">
                         <button
-                            key={item.label}
-                            onClick={() => {
-                                onNavigate(item.target);
+                            onClick={async () => {
+                                await signOut();
+                                navigate('/login');
                                 onMobileClose();
                             }}
-                            className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${currentScreen === item.target
-                                ? 'bg-primary/10 text-primary'
-                                : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white'
-                                }`}
+                            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors"
                         >
-                            <span className={`material-symbols-outlined text-[20px] ${currentScreen === item.target ? 'filled-icon' : ''}`}>
-                                {item.icon}
-                            </span>
-                            {item.label}
+                            <span className="material-symbols-outlined text-[20px]">logout</span>
+                            Sair
                         </button>
-                    ))}
+                    </div>
                 </nav>
             </aside>
         </>

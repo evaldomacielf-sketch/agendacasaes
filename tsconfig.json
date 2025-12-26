@@ -28,6 +28,7 @@
     "strict": true,
     "noImplicitAny": true,
     "strictNullChecks": true,
+    "forceConsistentCasingInFileNames": true,
     "noEmit": true
   },
   "include": [

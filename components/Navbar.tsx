@@ -1,8 +1,7 @@
 import React from 'react';
-import { ScreenName } from '../types';
+import { useNavigate } from 'react-router-dom';
 
 interface NavbarProps {
-    onNavigate: (screen: ScreenName) => void;
     variant?: 'landing' | 'back' | 'steps';
     title?: string;
     step?: {
@@ -15,18 +14,18 @@ interface NavbarProps {
 }
 
 const Navbar: React.FC<NavbarProps> = ({
-    onNavigate,
     variant = 'landing',
     title,
     step,
     rightAction
 }) => {
+    const navigate = useNavigate();
 
     if (variant === 'landing') {
         return (
             <header className="sticky top-0 z-50 w-full bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-md border-b border-gray-200/50 dark:border-gray-800/50">
                 <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
-                    <div className="flex items-center gap-2 cursor-pointer" onClick={() => onNavigate(ScreenName.LANDING)}>
+                    <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/')}>
                         <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary/10 text-primary">
                             <span className="material-symbols-outlined text-[20px]">calendar_month</span>
                         </div>
@@ -35,7 +34,7 @@ const Navbar: React.FC<NavbarProps> = ({
                     <div className="flex items-center gap-4">
                         {rightAction || (
                             <>
-                                <button onClick={() => onNavigate(ScreenName.LOGIN)} className="hidden sm:block text-sm font-semibold text-primary hover:text-primary-dark transition-colors">Entrar</button>
+                                <button onClick={() => navigate('/login')} className="hidden sm:block text-sm font-semibold text-primary hover:text-primary-dark transition-colors">Entrar</button>
                                 <button className="flex items-center justify-center w-10 h-10 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-slate-700 dark:text-slate-200">
                                     <span className="material-symbols-outlined">menu</span>
                                 </button>
@@ -50,13 +49,13 @@ const Navbar: React.FC<NavbarProps> = ({
     if (variant === 'back') {
         return (
             <div className="flex items-center p-4 pb-2 justify-between sticky top-0 z-50 bg-background-light/95 dark:bg-background-dark/95 backdrop-blur-md border-b border-gray-100 dark:border-gray-800">
-                <button onClick={() => onNavigate(ScreenName.LANDING)} className="text-text-main dark:text-white flex size-12 shrink-0 items-center justify-start hover:text-primary transition-colors">
+                <button onClick={() => navigate('/')} className="text-text-main dark:text-white flex size-12 shrink-0 items-center justify-start hover:text-primary transition-colors">
                     <span className="material-symbols-outlined">{title === 'AgendaCasaES' ? 'arrow_back' : 'arrow_back'}</span>
                 </button>
                 <h2 className="text-text-main dark:text-white text-lg font-bold flex-1 text-center">{title}</h2>
                 <div className="flex w-12 items-center justify-end">
                     {rightAction || (
-                        <button onClick={() => onNavigate(ScreenName.LOGIN)} className="text-primary text-base font-bold hover:opacity-80">Login</button>
+                        <button onClick={() => navigate('/login')} className="text-primary text-base font-bold hover:opacity-80">Login</button>
                     )}
                 </div>
             </div>
@@ -67,7 +66,7 @@ const Navbar: React.FC<NavbarProps> = ({
         return (
             <header className="fixed top-0 z-50 w-full bg-surface-light/95 backdrop-blur-sm border-b border-gray-100 dark:bg-background-dark/95 dark:border-gray-800 shadow-sm">
                 <div className="flex items-center justify-between px-4 py-3">
-                    <button onClick={() => onNavigate(ScreenName.LANDING)} className="p-2 -ml-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                    <button onClick={() => navigate('/')} className="p-2 -ml-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
                         <span className="material-symbols-outlined text-text-main dark:text-white">arrow_back</span>
                     </button>
                     <h1 className="text-lg font-bold text-text-main dark:text-white flex-1 text-center pr-8">{title || 'Agendamento'}</h1>
