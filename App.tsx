@@ -16,6 +16,8 @@ import ClientsScreen from './screens/dashboard/ClientsScreen';
 import ServicesScreen from './screens/dashboard/ServicesScreen';
 import ReportsScreen from './screens/dashboard/ReportsScreen';
 
+import SettingsScreen from './screens/dashboard/SettingsScreen';
+
 const App: React.FC = () => {
   const [currentScreen, setCurrentScreen] = useState<ScreenName>(ScreenName.LANDING);
 
@@ -60,8 +62,7 @@ const App: React.FC = () => {
       case ScreenName.DASHBOARD_REPORTS:
         return <ReportsScreen onNavigate={navigate} />;
       case ScreenName.DASHBOARD_SETTINGS:
-        // TODO: Create dedicated screens for these
-        return <MainFeaturesScreen onNavigate={navigate} />;
+        return <SettingsScreen onNavigate={navigate} />;
 
       default:
         return <LandingScreen onNavigate={navigate} />;
