@@ -14,6 +14,6 @@ gcloud run deploy "$SERVICE_NAME" \
   --region "$REGION" \
   --allow-unauthenticated \
   --memory "$MEMORY" \
-  --port 8080
+  --port 80
 
 echo "✅ Deployment command sent."
