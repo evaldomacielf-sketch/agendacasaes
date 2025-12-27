@@ -73,19 +73,38 @@ const BookingScreen: React.FC<NavProps> = ({ onNavigate }) => {
   // Tenant State
   // For MVP, we'll try to find a public tenant, e.g. "AgendaCasaES" or the first one found.
   const [tenantId, setTenantId] = useState<string | null>(null);
+  const [tenantLoaded, setTenantLoaded] = useState(false);
 
   useEffect(() => {
     // Find default tenant for the public booking page
     const loadDefaultTenant = async () => {
-      const { data } = await supabase.from('saloes').select('id, name, logo_url').limit(1).single();
-      if (data) {
-        setTenantId(data.id);
+      try {
+        // Try to get first available tenant from saloes or tenants table
+        let data = null;
+
+        // Try saloes table first
+        const { data: saloesData } = await supabase.from('saloes').select('id').limit(1).single();
+        if (saloesData) {
+          data = saloesData;
+        } else {
+          // Fallback to tenants table if saloes doesn't exist
+          const { data: tenantsData } = await supabase.from('tenants').select('id').limit(1).single();
+          if (tenantsData) data = tenantsData;
+        }
+
+        if (data) {
+          setTenantId(data.id);
+        }
+      } catch (err) {
+        console.warn('Could not load tenant, using public mode:', err);
+      } finally {
+        setTenantLoaded(true);
       }
     };
     loadDefaultTenant();
   }, []);
 
-  // Data Hooks
+  // Data Hooks - now useServices fetches even without tenantId
   const { services, loading: servicesLoading, error: servicesError } = useServices(tenantId || undefined);
   const { professionals } = useProfessionals();
 

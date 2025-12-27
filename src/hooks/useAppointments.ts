@@ -84,5 +84,42 @@ export const useAppointments = (date: Date, unitId?: string) => {
         }
     };
 
-    return { appointments, loading, error, refetch: fetchAppointments };
+    const createAppointment = async (appointmentData: {
+        clientId: string;
+        serviceId: string;
+        staffId: string;
+        startTime: Date;
+        endTime: Date;
+        notes?: string;
+    }) => {
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) throw new Error('Usuário não autenticado');
+
+            const { data: profile } = await supabase.from('profiles').select('tenant_id').eq('id', user.id).single();
+            if (!profile?.tenant_id) throw new Error('Tenant não encontrado');
+
+            const { data, error } = await supabase.from('appointments').insert({
+                tenant_id: profile.tenant_id,
+                client_id: appointmentData.clientId,
+                service_id: appointmentData.serviceId,
+                staff_id: appointmentData.staffId,
+                start_time: appointmentData.startTime.toISOString(),
+                end_time: appointmentData.endTime.toISOString(),
+                status: 'scheduled',
+                notes: appointmentData.notes || null
+            }).select('id').single();
+
+            if (error) throw error;
+
+            // Refresh list
+            await fetchAppointments();
+            return { success: true, id: data.id };
+        } catch (err: any) {
+            console.error('Error creating appointment:', err);
+            return { success: false, error: err.message };
+        }
+    };
+
+    return { appointments, loading, error, refetch: fetchAppointments, createAppointment };
 };

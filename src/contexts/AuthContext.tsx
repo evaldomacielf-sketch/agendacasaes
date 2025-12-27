@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../utils/supabaseClient';
+import * as Sentry from "@sentry/react";
 
 interface UserProfile {
     id: string;
@@ -54,6 +55,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (session?.user) {
                 const userProfile = await fetchProfile(session.user.id);
                 setProfile(userProfile);
+
+                // Set Sentry user context for error tracking
+                Sentry.setUser({
+                    id: session.user.id,
+                    email: session.user.email,
+                });
+                if (userProfile?.tenant_id) {
+                    Sentry.setTag("tenant_id", userProfile.tenant_id);
+                }
             }
 
             setLoading(false);
@@ -90,6 +100,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setProfile(null);
         setUser(null);
         setSession(null);
+        Sentry.setUser(null); // Clear Sentry user on logout
     };
 
     return (

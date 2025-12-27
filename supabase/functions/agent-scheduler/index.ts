@@ -60,10 +60,10 @@ serve(async (req: Request) => {
 
                 if (notifError) throw notifError;
 
-                // Update Status to SENT
+                // Update Status to SENT with sent_at timestamp
                 await supabaseClient
                     .from('scheduled_reminders')
-                    .update({ status: 'sent', updated_at: new Date().toISOString() })
+                    .update({ status: 'sent', sent_at: new Date().toISOString() })
                     .eq('id', reminder.id);
 
                 results.push({ id: reminder.id, status: 'success' });

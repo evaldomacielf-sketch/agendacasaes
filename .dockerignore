@@ -1,0 +1,15 @@
+# Docker build ignore patterns
+node_modules
+dist
+.git
+.github
+*.md
+*.log
+.env*
+.vscode
+tests
+supabase
+.DS_Store
+*.local
+coverage
+.gitignore

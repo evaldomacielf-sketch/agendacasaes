@@ -7,6 +7,8 @@ import AITipCard from '../../components/dashboard/AITipCard';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAI } from '../../hooks/useAI';
 import { useServices } from '../../hooks/useServices';
+import { useClients } from '../../hooks/useClients';
+import { useStaff } from '../../hooks/useStaff';
 
 const TIME_SLOTS = Array.from({ length: 14 }, (_, i) => i + 8); // 8:00 to 21:00
 
@@ -18,7 +20,15 @@ const AgendaScreen: React.FC<NavProps> = ({ onNavigate }) => {
     const { services } = useServices(); // Need services for the searchServices signature
 
     // For demo purposes, we won't pass a unitId yet, assuming single unit logic for MVP
-    const { appointments, loading, error } = useAppointments(selectedDate);
+    const { appointments, loading, error, createAppointment } = useAppointments(selectedDate);
+    const { clients } = useClients();
+    const { staff } = useStaff();
+
+    // New Appointment Modal State
+    const [showNewApptModal, setShowNewApptModal] = useState(false);
+    const [newApptForm, setNewApptForm] = useState({ clientId: '', serviceId: '', staffId: '', time: '09:00', notes: '' });
+    const [isCreatingAppt, setIsCreatingAppt] = useState(false);
+    const [apptError, setApptError] = useState<string | null>(null);
 
     useEffect(() => {
         // Mock check for Trial plan. In a real app, this would come from the user's subscription data
@@ -87,6 +97,41 @@ const AgendaScreen: React.FC<NavProps> = ({ onNavigate }) => {
         return { top: `${topOffset}px`, height: `${height}px` };
     };
 
+    const handleCreateAppointment = async () => {
+        if (!newApptForm.clientId || !newApptForm.serviceId || !newApptForm.staffId) {
+            setApptError('Preencha todos os campos obrigatórios');
+            return;
+        }
+        setIsCreatingAppt(true);
+        setApptError(null);
+
+        const selectedService = services.find(s => s.id === newApptForm.serviceId);
+        const [hours, minutes] = newApptForm.time.split(':').map(Number);
+
+        const startTime = new Date(selectedDate);
+        startTime.setHours(hours, minutes, 0, 0);
+
+        const endTime = new Date(startTime);
+        endTime.setMinutes(endTime.getMinutes() + (selectedService?.duration_minutes || 60));
+
+        const result = await createAppointment({
+            clientId: newApptForm.clientId,
+            serviceId: newApptForm.serviceId,
+            staffId: newApptForm.staffId,
+            startTime,
+            endTime,
+            notes: newApptForm.notes
+        });
+
+        if (result.success) {
+            setShowNewApptModal(false);
+            setNewApptForm({ clientId: '', serviceId: '', staffId: '', time: '09:00', notes: '' });
+        } else {
+            setApptError(result.error || 'Erro ao criar agendamento');
+        }
+        setIsCreatingAppt(false);
+    };
+
     return (
         <div className="relative flex flex-col h-full gap-4">
             {showOnboarding && <OnboardingTrial onDismiss={handleDismissOnboarding} />}
@@ -118,7 +163,7 @@ const AgendaScreen: React.FC<NavProps> = ({ onNavigate }) => {
                 </div>
 
                 <div className="flex items-center gap-2 mt-4 md:mt-0 w-full md:w-auto">
-                    <button className="flex-1 md:flex-none bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded-xl font-semibold shadow-sm flex items-center justify-center gap-2 transition-all">
+                    <button onClick={() => setShowNewApptModal(true)} className="flex-1 md:flex-none bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded-xl font-semibold shadow-sm flex items-center justify-center gap-2 transition-all">
                         <span className="material-symbols-outlined">add</span>
                         <span className="hidden sm:inline">Novo Agendamento</span>
                     </button>
@@ -177,8 +222,106 @@ const AgendaScreen: React.FC<NavProps> = ({ onNavigate }) => {
                     </div>
                 </div>
             </div>
+
+            {/* New Appointment Modal */}
+            {showNewApptModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                    <div className="bg-white dark:bg-surface-dark w-full max-w-md rounded-2xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-200">
+                        <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center">
+                            <h2 className="text-xl font-bold text-slate-900 dark:text-white">Novo Agendamento</h2>
+                            <button onClick={() => setShowNewApptModal(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full">
+                                <span className="material-symbols-outlined">close</span>
+                            </button>
+                        </div>
+
+                        <div className="p-6 space-y-4">
+                            {apptError && (
+                                <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-400 text-sm">
+                                    {apptError}
+                                </div>
+                            )}
+
+                            <div>
+                                <label htmlFor="apptClient" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Cliente *</label>
+                                <select
+                                    id="apptClient"
+                                    value={newApptForm.clientId}
+                                    onChange={(e) => setNewApptForm(prev => ({ ...prev, clientId: e.target.value }))}
+                                    className="w-full px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                >
+                                    <option value="">Selecione um cliente</option>
+                                    {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label htmlFor="apptService" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Serviço *</label>
+                                <select
+                                    id="apptService"
+                                    value={newApptForm.serviceId}
+                                    onChange={(e) => setNewApptForm(prev => ({ ...prev, serviceId: e.target.value }))}
+                                    className="w-full px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                >
+                                    <option value="">Selecione um serviço</option>
+                                    {services.map(s => <option key={s.id} value={s.id}>{s.name} ({s.duration_minutes}min - R${s.price})</option>)}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label htmlFor="apptStaff" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Profissional *</label>
+                                <select
+                                    id="apptStaff"
+                                    value={newApptForm.staffId}
+                                    onChange={(e) => setNewApptForm(prev => ({ ...prev, staffId: e.target.value }))}
+                                    className="w-full px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                >
+                                    <option value="">Selecione um profissional</option>
+                                    {staff.map(s => <option key={s.id} value={s.id}>{s.full_name}</option>)}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label htmlFor="apptTime" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Horário *</label>
+                                <input
+                                    id="apptTime"
+                                    type="time"
+                                    value={newApptForm.time}
+                                    onChange={(e) => setNewApptForm(prev => ({ ...prev, time: e.target.value }))}
+                                    className="w-full px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                />
+                            </div>
+
+                            <div>
+                                <label htmlFor="apptNotes" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Observações</label>
+                                <textarea
+                                    id="apptNotes"
+                                    placeholder="Observações..."
+                                    rows={2}
+                                    value={newApptForm.notes}
+                                    onChange={(e) => setNewApptForm(prev => ({ ...prev, notes: e.target.value }))}
+                                    className="w-full px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-primary/20 resize-none"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="p-4 bg-gray-50 dark:bg-white/5 border-t border-gray-100 dark:border-gray-800 flex justify-end gap-2">
+                            <button onClick={() => setShowNewApptModal(false)} className="px-4 py-2 text-slate-600 font-medium hover:bg-white rounded-lg">
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={handleCreateAppointment}
+                                disabled={isCreatingAppt}
+                                className="px-4 py-2 bg-primary text-white font-bold rounded-lg hover:bg-primary-dark disabled:opacity-50"
+                            >
+                                {isCreatingAppt ? 'Salvando...' : 'Agendar'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
 
 export default AgendaScreen;
+

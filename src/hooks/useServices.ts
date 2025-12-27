@@ -21,9 +21,9 @@ export const useServices = (tenantId?: string) => {
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        if (tenantId) {
-            fetchServices();
-        }
+        // For public booking page, fetch even without tenantId (will get all active services)
+        // For dashboard, filter by tenantId when available
+        fetchServices();
     }, [tenantId]);
 
     const fetchServices = async () => {
@@ -38,6 +38,7 @@ export const useServices = (tenantId?: string) => {
                 .eq('is_active', true)
                 .order('name', { ascending: true });
 
+            // Only filter by tenant if tenantId is provided
             if (tenantId) {
                 query = query.eq('tenant_id', tenantId);
             }
@@ -47,7 +48,8 @@ export const useServices = (tenantId?: string) => {
             if (err) throw err;
 
             if (!data || data.length === 0) {
-                // console.warn("No services found in DB, using mock data for demo.");
+                // Use mock data for demo/fallback
+                console.warn("No services found in DB, using mock data for demo.");
                 setServices(MOCK_SERVICES);
             } else {
                 setServices(data as Service[]);
@@ -55,6 +57,7 @@ export const useServices = (tenantId?: string) => {
         } catch (err: any) {
             console.error('Error fetching services:', err);
             // Always fallback to Mock in this MVP demo environment if connection fails
+            setError(err.message);
             setServices(MOCK_SERVICES);
         } finally {
             setLoading(false);
