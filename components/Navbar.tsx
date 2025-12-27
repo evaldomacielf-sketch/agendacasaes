@@ -27,7 +27,7 @@ const Navbar: React.FC<NavbarProps> = ({
                 <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
                     <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/')}>
                         <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary/10 text-primary">
-                            <span className="material-symbols-outlined text-[20px]">calendar_month</span>
+                            <img src="/logo.png" alt="AgendaCasaES" className="navbar-logo" />
                         </div>
                         <span className="text-lg font-bold tracking-tight text-slate-900 dark:text-white">AgendaCasaES</span>
                     </div>

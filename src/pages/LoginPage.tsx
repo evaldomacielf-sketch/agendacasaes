@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../utils/supabaseClient';
+import { supabase } from '../../utils/supabaseClient';
 
 const LoginScreen: React.FC = () => {
   const navigate = useNavigate();
@@ -38,8 +38,7 @@ const LoginScreen: React.FC = () => {
       {/* Header Image */}
       <div className="w-full p-4 pb-2">
         <div
-          className="w-full h-48 bg-center bg-no-repeat bg-cover rounded-2xl shadow-sm relative overflow-hidden"
-          style={{ backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuAQoLn2kHnjaVwfT9sGqxebyGfVivzO2D1HTlykgfuX4lPpFiuyN13dwOyBsggBIIv1Z48V17Wh4S5k5ZKAVt5wGMBVtxSi9Lsqq_gflvnacfbHBoi-EntX3m3Oh4lwFVZ9I2h_mLXT7G080RM6F9b7z_yfuDpjuX5EVO9Ku9u_ihGWFnFAalofUMxJiLxcYBxtPX92_zlkFzwZKjvnd0JZu--SpjpWnakSylAiqTJA24RCJBTTEw8JKwrdi5zg8M9J_9BV8SIamHM")' }}
+          className="w-full h-48 bg-center bg-no-repeat bg-cover rounded-2xl shadow-sm relative overflow-hidden login-header-bg"
         >
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
           <div className="absolute bottom-4 left-4">

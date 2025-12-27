@@ -1,0 +1,48 @@
+/* Navbar Styles */
+.navbar-logo {
+    height: 40px;
+}
+
+/* Login Screen Styles */
+.login-container {
+    background: white;
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    width: 100%;
+    max-width: 400px;
+}
+
+/* Agenda Screen Styles */
+.calendar-container {
+    height: 600px;
+    background: white;
+    border-radius: 8px;
+    padding: 1rem;
+}
+
+/* Reports Screen Styles */
+.chart-container-half {
+    width: 48%;
+    background: white;
+    padding: 1rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.chart-container-full {
+    width: 100%;
+    background: white;
+    padding: 1rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    margin-top: 1rem;
+}
+
+/* Testimonials Screen Styles */
+.testimonial-card {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}

@@ -1,17 +1,19 @@
 import React from 'react';
-import { NavProps, ScreenName } from '../types';
+import { useNavigate } from 'react-router-dom';
 
 import Layout from '../components/Layout';
 import Navbar from '../components/Navbar';
 
-const LandingScreen: React.FC<NavProps> = ({ onNavigate }) => {
+const LandingPage: React.FC = () => {
+  const navigate = useNavigate();
+
   return (
     <Layout>
       {/* Abstract Background Shapes */}
       <div className="absolute top-[-100px] right-[-100px] w-96 h-96 bg-primary/10 rounded-full blur-3xl -z-10"></div>
       <div className="absolute top-[20%] left-[-50px] w-64 h-64 bg-blue-400/10 rounded-full blur-3xl -z-10"></div>
 
-      <Navbar onNavigate={onNavigate} variant="landing" />
+      <Navbar variant="landing" />
 
       <main className="w-full">
         {/* Hero Section */}
@@ -31,11 +33,11 @@ const LandingScreen: React.FC<NavProps> = ({ onNavigate }) => {
               Tenha controle total com agenda online, financeiro, estoque e redução de faltas. Tudo o que você precisa para crescer o seu negócio.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4 w-full sm:w-auto">
-              <button onClick={() => onNavigate(ScreenName.SIGNUP)} className="w-full sm:w-auto px-8 h-14 bg-primary hover:bg-primary-dark text-white text-base font-bold rounded-lg shadow-lg shadow-primary/25 transition-all transform hover:-translate-y-0.5 active:translate-y-0 duration-200 flex items-center justify-center gap-2">
+              <button onClick={() => navigate('/signup')} className="w-full sm:w-auto px-8 h-14 bg-primary hover:bg-primary-dark text-white text-base font-bold rounded-lg shadow-lg shadow-primary/25 transition-all transform hover:-translate-y-0.5 active:translate-y-0 duration-200 flex items-center justify-center gap-2">
                 <span>Começar teste gratuito</span>
                 <span className="material-symbols-outlined text-sm">arrow_forward</span>
               </button>
-              <button onClick={() => onNavigate(ScreenName.PRICING)} className="w-full sm:w-auto px-8 h-14 bg-transparent border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-white/5 text-slate-700 dark:text-slate-200 text-base font-semibold rounded-lg transition-colors flex items-center justify-center">
+              <button onClick={() => navigate('/pricing')} className="w-full sm:w-auto px-8 h-14 bg-transparent border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-white/5 text-slate-700 dark:text-slate-200 text-base font-semibold rounded-lg transition-colors flex items-center justify-center">
                 Ver planos e preços
               </button>
             </div>
@@ -78,11 +80,11 @@ const LandingScreen: React.FC<NavProps> = ({ onNavigate }) => {
                     <span className="material-symbols-outlined">home</span>
                     <span className="hidden lg:inline">Início</span>
                   </div>
-                  <div className="h-10 w-full hover:bg-gray-100 dark:hover:bg-white/5 rounded-lg flex items-center px-3 gap-3 text-slate-500 dark:text-slate-400 transition-colors cursor-pointer" onClick={() => onNavigate(ScreenName.BOOKING)}>
+                  <div className="h-10 w-full hover:bg-gray-100 dark:hover:bg-white/5 rounded-lg flex items-center px-3 gap-3 text-slate-500 dark:text-slate-400 transition-colors cursor-pointer" onClick={() => navigate('/booking')}>
                     <span className="material-symbols-outlined">calendar_month</span>
                     <span className="hidden lg:inline">Agenda</span>
                   </div>
-                  <div className="h-10 w-full hover:bg-gray-100 dark:hover:bg-white/5 rounded-lg flex items-center px-3 gap-3 text-slate-500 dark:text-slate-400 transition-colors cursor-pointer" onClick={() => onNavigate(ScreenName.MAIN_FEATURES)}>
+                  <div className="h-10 w-full hover:bg-gray-100 dark:hover:bg-white/5 rounded-lg flex items-center px-3 gap-3 text-slate-500 dark:text-slate-400 transition-colors cursor-pointer" onClick={() => navigate('/dashboard')}>
                     <span className="material-symbols-outlined">attach_money</span>
                     <span className="hidden lg:inline">Financeiro</span>
                   </div>
@@ -96,7 +98,7 @@ const LandingScreen: React.FC<NavProps> = ({ onNavigate }) => {
                         <h3 className="text-xl font-bold text-slate-800 dark:text-white">Visão Geral</h3>
                         <p className="text-sm text-slate-500 dark:text-slate-400">Bem-vindo de volta, Studio Glamour</p>
                       </div>
-                      <button onClick={() => onNavigate(ScreenName.BOOKING)} className="bg-primary text-white text-sm font-semibold px-4 py-2 rounded-lg flex items-center gap-2 shadow-sm self-start sm:self-auto hover:bg-primary-dark transition-colors">
+                      <button onClick={() => navigate('/booking')} className="bg-primary text-white text-sm font-semibold px-4 py-2 rounded-lg flex items-center gap-2 shadow-sm self-start sm:self-auto hover:bg-primary-dark transition-colors">
                         <span className="material-symbols-outlined text-[18px]">add</span>
                         Novo Agendamento
                       </button>
@@ -166,4 +168,4 @@ const LandingScreen: React.FC<NavProps> = ({ onNavigate }) => {
   );
 };
 
-export default LandingScreen;
+export default LandingPage;

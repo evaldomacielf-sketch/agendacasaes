@@ -1,0 +1,45 @@
+steps:
+  # 1. Build the container image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/agendacasaes-repo/agendacasaes-app:$COMMIT_SHA'
+      - '--build-arg'
+      - 'VITE_SUPABASE_URL=$_VITE_SUPABASE_URL'
+      - '--build-arg'
+      - 'VITE_SUPABASE_ANON_KEY=$_VITE_SUPABASE_ANON_KEY'
+      - '--build-arg'
+      - 'VITE_SENTRY_DSN=$_VITE_SENTRY_DSN'
+      - '--build-arg'
+      - 'GEMINI_API_KEY=$_GEMINI_API_KEY'
+      - '.'
+
+  # 2. Push the image to Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'us-central1-docker.pkg.dev/$PROJECT_ID/agendacasaes-repo/agendacasaes-app:$COMMIT_SHA']
+
+  # 3. Deploy container to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'agendacasaes-app'
+      - '--image'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/agendacasaes-repo/agendacasaes-app:$COMMIT_SHA'
+      - '--region'
+      - 'us-central1'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+
+# Substitutions (Environent Variables)
+substitutions:
+  _VITE_SUPABASE_URL: '' # To be set in Cloud Build Trigger
+  _VITE_SUPABASE_ANON_KEY: '' # To be set in Cloud Build Trigger
+  _VITE_SENTRY_DSN: '' # To be set in Cloud Build Trigger
+  _GEMINI_API_KEY: '' # To be set in Cloud Build Trigger
+
+options:
+  logging: CLOUD_LOGGING_ONLY
