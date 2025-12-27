@@ -61,6 +61,15 @@
       scrollbar-width: none;
       /* Firefox */
     }
+
+    /* Firefox specific hack if needed, effectively simpler to just ignore scrollbar-width warning or use specific class. 
+       Actually, removing scrollbar-width might show scrollbar in FF. 
+       I will wrap it or just remove the property to satisfy the specific linter warning about support. */
+    @supports (scrollbar-width: none) {
+      .no-scrollbar {
+        scrollbar-width: none;
+      }
+    }
   </style>
   <script type="importmap">
 {
