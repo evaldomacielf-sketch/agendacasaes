@@ -350,11 +350,6 @@ const BookingScreen: React.FC<NavProps> = ({ onNavigate }) => {
             <div className="space-y-3">
               {[1, 2, 3].map(i => <div key={i} className="h-24 bg-gray-100 dark:bg-gray-800 rounded-xl animate-pulse" />)}
             </div>
-          ) : servicesError ? (
-            <div className="text-center py-10">
-              <p className="text-red-500 mb-2">Não foi possível carregar os serviços.</p>
-              <button onClick={() => window.location.reload()} className="text-primary font-bold underline">Tentar novamente</button>
-            </div>
           ) : filteredServices.length === 0 ? (
             <div className="text-center py-10 text-gray-500">Nenhum serviço encontrado nesta categoria.</div>
           ) : (

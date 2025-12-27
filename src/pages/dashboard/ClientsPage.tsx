@@ -33,6 +33,12 @@ const ClientsScreen: React.FC<NavProps> = ({ onNavigate }) => {
     };
 
     const handleCreateClient = async () => {
+        // Check if tenant is configured
+        if (!tenantId) {
+            setCreateError('Conta não configurada. Faça logout e login novamente, ou entre em contato com o suporte.');
+            return;
+        }
+
         if (!newClientForm.name.trim() || !newClientForm.phone.trim()) {
             setCreateError('Nome e telefone são obrigatórios');
             return;
