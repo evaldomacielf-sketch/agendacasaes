@@ -20,6 +20,15 @@ const BookingStepper = ({ currentStep }: { currentStep: number }) => {
     { num: 3, label: 'Seus Dados' }
   ];
 
+  /* eslint-disable-next-line react-dom/no-unsafe-inline-style */
+  const activeLineRef = React.useRef<HTMLDivElement>(null);
+
+  React.useLayoutEffect(() => {
+    if (activeLineRef.current) {
+      activeLineRef.current.style.width = `calc(${((currentStep - 1) / 2) * 100}% - 32px)`;
+    }
+  }, [currentStep]);
+
   return (
     <div className="w-full bg-surface-light dark:bg-background-dark pt-6 pb-2 px-4">
       <div className="max-w-md mx-auto relative px-4">
@@ -27,8 +36,8 @@ const BookingStepper = ({ currentStep }: { currentStep: number }) => {
         <div className="absolute top-4 left-4 right-4 h-0.5 bg-gray-200 dark:bg-gray-700 -z-10" />
         {/* Active Line */}
         <div
+          ref={activeLineRef}
           className="absolute top-4 left-4 h-0.5 bg-primary -z-10 transition-all duration-300"
-          style={{ width: `calc(${((currentStep - 1) / 2) * 100}% - 32px)` }}
         />
 
         <div className="flex justify-between w-full">
@@ -281,10 +290,10 @@ const BookingScreen: React.FC<NavProps> = ({ onNavigate }) => {
                 disabled={!slot.available}
                 onClick={() => setSelectedTime(slot.time)}
                 className={`py-2 rounded-lg text-sm font-semibold transition-all ${!slot.available
-                    ? 'bg-gray-50 text-gray-300 dark:bg-gray-800/50 dark:text-gray-700 cursor-not-allowed line-through'
-                    : selectedTime === slot.time
-                      ? 'bg-primary text-white shadow-md scale-105'
-                      : 'bg-white border border-gray-200 dark:bg-surface-dark dark:border-gray-700 text-slate-700 dark:text-gray-200 hover:border-primary'
+                  ? 'bg-gray-50 text-gray-300 dark:bg-gray-800/50 dark:text-gray-700 cursor-not-allowed line-through'
+                  : selectedTime === slot.time
+                    ? 'bg-primary text-white shadow-md scale-105'
+                    : 'bg-white border border-gray-200 dark:bg-surface-dark dark:border-gray-700 text-slate-700 dark:text-gray-200 hover:border-primary'
                   }`}
               >
                 {slot.time}
