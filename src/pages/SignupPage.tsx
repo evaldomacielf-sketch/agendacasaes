@@ -1,3 +1,6 @@
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { supabase } from '../utils/supabaseClient';
 import { PhoneInput } from '../components/PhoneInput';
 
 const SignupScreen: React.FC = () => {

@@ -6,9 +6,5 @@
         ],
         "strict": true
     },
-    "imports": {
-        "std/": "https://deno.land/std@0.168.0/",
-        "npm/": "https://esm.sh/",
-        "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2"
-    }
+    "importMap": "import_map.json"
 }

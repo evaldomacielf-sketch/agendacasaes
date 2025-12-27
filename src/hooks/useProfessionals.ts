@@ -30,7 +30,7 @@ export const useProfessionals = () => {
                 .in('role', ['staff', 'owner', 'manager'])
                 .eq('is_active', true);
 
-            if (error) {
+            if (err) {
                 console.warn("Supabase fetch failed, using mock data:", error);
                 // Fallback to mock data for development/demo
                 setProfessionals(MOCK_PROFESSIONALS);

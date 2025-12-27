@@ -7,113 +7,71 @@ import { initVertexAI, getGeminiModel } from "../_shared/vertex-ai.ts";
 console.log("Hello from agent-feedback-analytics!");
 
 serve(async (req: Request) => {
-    if (req.method === "OPTIONS") {
-        return new Response("ok", { headers: corsHeaders });
+    if (req.method === 'OPTIONS') {
+        return new Response('ok', { headers: corsHeaders });
     }
 
     try {
         const supabaseClient = createClient(
-            Deno.env.get("SUPABASE_URL") ?? "",
-            Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-            { global: { headers: { Authorization: req.headers.get("Authorization")! } } }
+            Deno.env.get('SUPABASE_URL') ?? '',
+            Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+            { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
         );
 
-        // tenant_id from user token
-        const { data: { user } } = await supabaseClient.auth.getUser();
-        if (!user) throw new Error("Unauthorized");
+        const { tenantId } = await req.json();
+        if (!tenantId) throw new Error("Missing tenantId");
 
-        // In real app, fetch tenant. Mocking fetch or assuming we pass filter.
-        // Let's rely on RLS and just query.
+        // 1. Fetch Reviews
+        const { data: reviews } = await supabaseClient
+            .from('reviews')
+            .select('comment, service_rating, created_at, services(name), profiles(full_name)') // Reviewer name in profiles? Reviews usually linked to Appointments->Client
+            .eq('tenant_id', tenantId)
+            .order('created_at', { ascending: false })
+            .limit(50); // Analyze last 50 for trends
 
-        // Parse URL for action: /trends or /insights (simulated via body for now)
-        const { action, period_days = 30 } = await req.json(); // action: 'trends' | 'insights'
-
-        if (action === 'trends') {
-            // Simple aggregation using SQL/PostgREST
-            // Get reviews from last X days
-            const startDate = new Date();
-            startDate.setDate(startDate.getDate() - period_days);
-
-            const { data: reviews, error } = await supabaseClient
-                .from("reviews")
-                .select("sentiment_score, created_at, rating")
-                .gte("created_at", startDate.toISOString())
-                .order("created_at", { ascending: true });
-
-            if (error) throw error;
-
-            // Group by day or week (basic JS aggregation)
-            // ... (Aggregation logic) ...
-            // Returning raw data for frontend charting for simplicity
-            return new Response(JSON.stringify({ trends: reviews }), {
-                headers: { ...corsHeaders, "Content-Type": "application/json" },
-                status: 200,
-            });
-
-        } else if (action === 'insights') {
-            // AI Analysis of batch reviews
-            const startDate = new Date();
-            startDate.setDate(startDate.getDate() - period_days);
-
-            const { data: reviews, error } = await supabaseClient
-                .from("reviews")
-                .select("comment, rating, analysis")
-                .gte("created_at", startDate.toISOString())
-                .not("comment", "is", null)
-                .limit(50); // Analyze max 50 recent comments to fit context
-
-            if (error) throw error;
-
-            if (!reviews || reviews.length === 0) {
-                return new Response(JSON.stringify({ summary: "No reviews found." }), {
-                    headers: { ...corsHeaders, "Content-Type": "application/json" },
-                    status: 200,
-                });
-            }
-
-            // Prepare text for LLM
-            const reviewsText = reviews.map((r: any) => `[${r.rating}/5] ${r.comment}`).join("\n");
-
-            const vertex_ai = initVertexAI();
-            const model = getGeminiModel(vertex_ai, "gemini-1.5-pro");
-
-            const prompt = `
-          Analyze these ${reviews.length} customer reviews from the last ${period_days} days.
-          
-          Reviews:
-          ${reviewsText}
-          
-          Task:
-          1. Identify the Top 3 Recurring Themes (Positive + Negative).
-          2. Summarize the overall Customer Sentiment.
-          3. Provide 3 Concrete Recommendations for management to improve.
-          
-          Output JSON:
-          {
-            "sentiment_summary": "...",
-            "top_themes": [{"name": "...", "type": "positive/negative", "count": 0}],
-            "recommendations": ["..."]
-          }
-        `;
-
-            const result = await model.generateContent(prompt);
-            const responseText = result.response.candidates[0].content.parts[0].text;
-            const cleanedText = responseText.replace(/```json/g, "").replace(/```/g, "").trim();
-            const insights = JSON.parse(cleanedText);
-
-            return new Response(JSON.stringify(insights), {
-                headers: { ...corsHeaders, "Content-Type": "application/json" },
-                status: 200,
+        if (!reviews || reviews.length === 0) {
+            return new Response(JSON.stringify({ message: "No reviews to analyze" }), {
+                headers: { ...corsHeaders, "Content-Type": "application/json" }
             });
         }
 
-        throw new Error("Invalid action. Use 'trends' or 'insights'");
+        // 2. Prompt
+        const prompt = `
+            You are a Feedback Analyst for a Beauty Salon.
+            Analyze the following 50 recent reviews and provide a strategic summary.
+            
+            REVIEWS:
+            ${JSON.stringify(reviews.map((r: any) => `(${r.service_rating}/5) ${r.services?.name}: ${r.comment || 'No comment'}`))}
+            
+            OUTPUT (JSON):
+            {
+                "sentiment": "Positive" | "Neutral" | "Negative",
+                "score": 0-100,
+                "topics": ["list", "of", "main", "topics"],
+                "issues": ["list", "of", "complaints"],
+                "strengths": ["list", "of", "praises"],
+                "suggestions": ["Actionable advice for the manager"],
+                "alerts": [ {"severity": "High" | "Medium", "message": "Critical issue details"} ]
+            }
+        `;
 
-    } catch (error: unknown) {
-        console.error("Agent analytics Error:", error);
-        return new Response(JSON.stringify({ error: error instanceof Error ? error.message : String(error) }), {
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-            status: 400,
+        // 3. Call AI
+        const vertex_ai = initVertexAI();
+        const model = getGeminiModel(vertex_ai, "gemini-pro");
+        const result = await model.generateContent(prompt);
+        const text = result.response.candidates?.[0].content.parts?.[0].text;
+
+        const cleanJson = text?.replace(/```json/g, '').replace(/```/g, '').trim();
+        const analysis = JSON.parse(cleanJson || '{}');
+
+        return new Response(JSON.stringify(analysis), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
+        });
+
+    } catch (error: any) {
+        console.error(error);
+        return new Response(JSON.stringify({ error: error.message }), {
+            status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" }
         });
     }
 });
