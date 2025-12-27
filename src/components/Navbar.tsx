@@ -11,13 +11,15 @@ interface NavbarProps {
         subLabel: string;
     };
     rightAction?: React.ReactNode;
+    onNavigate?: (screen: any) => void; // Using any or ScreenName if imported
 }
 
 const Navbar: React.FC<NavbarProps> = ({
     variant = 'landing',
     title,
     step,
-    rightAction
+    rightAction,
+    onNavigate
 }) => {
     const navigate = useNavigate();
 

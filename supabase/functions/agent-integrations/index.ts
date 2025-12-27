@@ -5,7 +5,7 @@ import { corsHeaders } from "../_shared/cors.ts";
 
 console.log("Hello from agent-integrations!");
 
-serve(async (req) => {
+serve(async (req: Request) => {
     if (req.method === 'OPTIONS') {
         return new Response('ok', { headers: corsHeaders });
     }
@@ -59,8 +59,8 @@ serve(async (req) => {
 
         return new Response(JSON.stringify({ message: "Action not supported" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error(error);
-        return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        return new Response(JSON.stringify({ error: error instanceof Error ? error.message : String(error) }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 });

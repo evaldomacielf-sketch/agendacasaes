@@ -4,10 +4,15 @@ import { supabase } from '../utils/supabaseClient';
 export interface Service {
     id: string;
     name: string;
+    description?: string;
     category: string;
-    duration_min: number;
+    duration_minutes: number; // Changed from duration_min to match DB convention mostly
     price: number;
-    is_membership: boolean;
+    image?: string;
+    rating?: number;
+    review_count?: number;
+    is_active?: boolean;
+    is_membership?: boolean;
 }
 
 export const useServices = () => {
@@ -27,6 +32,8 @@ export const useServices = () => {
             const { data, error: err } = await supabase
                 .from('services')
                 .select('*')
+                .select('*')
+                .eq('is_active', true)
                 .order('name', { ascending: true });
 
             if (err) throw err;

@@ -6,7 +6,7 @@ import { initVertexAI } from "../_shared/vertex-ai.ts";
 
 console.log("Hello from agent-forecast!");
 
-serve(async (req) => {
+serve(async (req: Request) => {
     if (req.method === 'OPTIONS') {
         return new Response('ok', { headers: corsHeaders });
     }
@@ -54,7 +54,7 @@ serve(async (req) => {
         // Group by Day -> Count, Top Service
         const dailyStats: Record<string, { count: number; services: Record<string, number> }> = {};
 
-        appointments?.forEach(appt => {
+        appointments?.forEach((appt: any) => {
             const day = appt.start_time.split('T')[0]; // YYYY-MM-DD
             if (!dailyStats[day]) {
                 dailyStats[day] = { count: 0, services: {} };
@@ -113,10 +113,10 @@ serve(async (req) => {
             { headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error(error);
         return new Response(
-            JSON.stringify({ error: error.message }),
+            JSON.stringify({ error: error instanceof Error ? error.message : String(error) }),
             { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
     }
