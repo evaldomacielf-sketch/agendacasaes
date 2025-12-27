@@ -67,9 +67,26 @@ const BookingStepper = ({ currentStep }: { currentStep: number }) => {
 const BookingScreen: React.FC<NavProps> = ({ onNavigate }) => {
   // Navigation State
   const [currentStep, setCurrentStep] = useState(1);
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [bookingId, setBookingId] = useState<string | null>(null);
+
+  // Tenant State
+  // For MVP, we'll try to find a public tenant, e.g. "AgendaCasaES" or the first one found.
+  const [tenantId, setTenantId] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Find default tenant for the public booking page
+    const loadDefaultTenant = async () => {
+      const { data } = await supabase.from('saloes').select('id, name, logo_url').limit(1).single();
+      if (data) {
+        setTenantId(data.id);
+      }
+    };
+    loadDefaultTenant();
+  }, []);
 
   // Data Hooks
-  const { services, loading: servicesLoading, error: servicesError } = useServices();
+  const { services, loading: servicesLoading, error: servicesError } = useServices(tenantId || undefined);
   const { professionals } = useProfessionals();
 
   // Selection State
@@ -93,7 +110,7 @@ const BookingScreen: React.FC<NavProps> = ({ onNavigate }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Availability Hook
-  const { slots, loading: slotsLoading } = useAvailability(selectedDate, selectedProfessional);
+  const { slots, loading: slotsLoading } = useAvailability(selectedDate, selectedProfessional, tenantId || undefined);
 
   // Computed
   const categories = ['Todos', ...Array.from(new Set(services.map(s => s.category || 'Geral')))];
@@ -132,13 +149,13 @@ const BookingScreen: React.FC<NavProps> = ({ onNavigate }) => {
       alert("Por favor, aceite os termos e política de cancelamento.");
       return;
     }
+    if (!tenantId) {
+      alert("Erro: Estabelecimento não identificado.");
+      return;
+    }
+
     setIsSubmitting(true);
     try {
-      // 1. Tenant
-      const { data: tenantData } = await supabase.from('saloes').select('id').limit(1).single();
-      const tenantId = tenantData?.id;
-      if (!tenantId) throw new Error("Tenant not found");
-
       // 2. Upsert Client
       let clientId: string | null = null;
       // Check by Phone for simple dedup
@@ -154,27 +171,20 @@ const BookingScreen: React.FC<NavProps> = ({ onNavigate }) => {
         clientId = newClient.id;
       }
 
-      // 3. Insert Appointments (Create one per service or grouped? usually one booking with multiple items, but schema is 1 service per appointment)
-      // We will loop and create multiple appointments for MVP Step 1 logic
-      // OR better, create one appointment and put others in notes/or multiple inserts.
-      // For this MVP schema, let's create 1 appointment for the primary service and note the others, OR creates N appointments.
-      // Creating N appointments might be overlapping.
-      // Let's create just 1 for the first service selected to keep MVP simple, assuming multi-select is for package logic that might not be fully DB ready.
-      // BETTER: Insert ALL services at the SAME start time? That's double booking.
-      // Logic: Iterate duration.
+      // 3. Insert Appointments
       let currentStartTime = new Date(selectedDate);
       const [h, m] = (selectedTime || '00:00').split(':').map(Number);
       currentStartTime.setHours(h, m, 0, 0);
 
       const selectedServiceObjects = services.filter(s => selectedServices.includes(s.id));
 
-      // We insert the main booking for the first service
-      // And we might just create multiple records
+      let primaryApptId = null;
+
       for (const service of selectedServiceObjects) {
         const endTime = new Date(currentStartTime);
         endTime.setMinutes(endTime.getMinutes() + service.duration_minutes);
 
-        await supabase.from('appointments').insert({
+        const { data: appt, error: apptError } = await supabase.from('appointments').insert({
           tenant_id: tenantId,
           client_id: clientId,
           service_id: service.id,
@@ -183,29 +193,30 @@ const BookingScreen: React.FC<NavProps> = ({ onNavigate }) => {
           end_time: endTime.toISOString(),
           status: 'scheduled',
           notes: clientNotes
-        });
+        }).select('id').single();
+
+        if (apptError) throw apptError;
+        if (!primaryApptId) primaryApptId = appt.id;
 
         // Shift start time for next service (sequential)
         currentStartTime = endTime;
       }
 
       // 4. Notify
-      // Invoke Notification Agent (fire and forget usually, but await here is fine)
       try {
-        // Just trigger for the first one or a general "confirmation"
-        // We won't block on this
         supabase.functions.invoke('agent-notifications', { body: { type: 'confirmation', client_name: clientName } });
       } catch (e) { console.warn("Notification error", e) }
 
-
-      alert(`Agendamento Confirmado! \nObrigado, ${clientName.split(' ')[0]}!`);
-      if (onNavigate) onNavigate(ScreenName.LANDING);
+      setBookingId(primaryApptId || 'UNKNOWN');
+      setIsSuccess(true);
+      window.scrollTo(0, 0);
 
     } catch (err: any) {
       console.error("Booking Error:", err);
+      // Fallback for Demo
       if (err.message && err.message.includes('fetch')) {
         alert("Modo Offline: Agendamento simulado com sucesso!");
-        if (onNavigate) onNavigate(ScreenName.LANDING);
+        setIsSuccess(true);
       } else {
         alert(`Erro: ${err.message}`);
       }
@@ -216,6 +227,76 @@ const BookingScreen: React.FC<NavProps> = ({ onNavigate }) => {
 
 
   // --- Render Steps ---
+
+  const renderSuccess = () => (
+    <div className="flex flex-col items-center justify-center py-10 px-4 animate-in fade-in zoom-in duration-500">
+      <div className="size-24 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mb-6 ring-8 ring-green-50 dark:ring-green-900/10">
+        <span className="material-symbols-outlined text-5xl text-green-600 dark:text-green-400">check_circle</span>
+      </div>
+      <h2 className="text-2xl font-bold text-slate-900 dark:text-white text-center mb-2">Agendamento Confirmado!</h2>
+      <p className="text-gray-500 text-center max-w-xs mb-8">
+        Obrigado, {clientName.split(' ')[0]}. Enviamos os detalhes para seu WhatsApp.
+      </p>
+
+      <div className="bg-white dark:bg-surface-dark border border-gray-100 dark:border-gray-800 rounded-2xl p-6 shadow-xl w-full max-w-sm relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-full h-2 bg-primary"></div>
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <p className="text-xs text-gray-400 uppercase tracking-widest font-bold">Reserva ID</p>
+            <p className="text-xl font-mono font-bold text-slate-900 dark:text-white">#{bookingId?.slice(0, 8).toUpperCase()}</p>
+          </div>
+          <div className="size-12 bg-white p-1 rounded-lg border border-gray-200">
+            {/* Placeholder QR */}
+            <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${bookingId}`} alt="QR Code" className="w-full h-full opacity-80" />
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <div className="flex items-center gap-3">
+            <span className="material-symbols-outlined text-gray-400">calendar_month</span>
+            <p className="text-slate-700 dark:text-gray-200 font-medium">
+              {selectedDate.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="material-symbols-outlined text-gray-400">schedule</span>
+            <p className="text-slate-700 dark:text-gray-200 font-medium">
+              {selectedTime}
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="material-symbols-outlined text-gray-400">spa</span>
+            <p className="text-slate-700 dark:text-gray-200 font-medium truncate">
+              {services.find(s => s.id === selectedServices[0])?.name}
+              {selectedServices.length > 1 && ` + ${selectedServices.length - 1}`}
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-6 pt-6 border-t border-dashed border-gray-200 dark:border-gray-700 text-center">
+          <p className="text-xs text-gray-400">Apresente este código na recepção.</p>
+        </div>
+      </div>
+
+      <button
+        onClick={() => window.location.reload()}
+        className="mt-10 text-primary font-bold hover:underline"
+      >
+        Fazer novo agendamento
+      </button>
+    </div>
+  );
+
+  if (isSuccess) {
+    return (
+      <Layout>
+        <Navbar variant="back" title="Reserva Confirmada" onNavigate={onNavigate} />
+        <main className="w-full max-w-md mx-auto pt-16 px-4">
+          {renderSuccess()}
+        </main>
+      </Layout>
+    )
+  }
 
   const renderStep1 = () => {
     const filteredServices = services.filter(service => activeCategory === 'Todos' || service.category === activeCategory);

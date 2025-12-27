@@ -15,14 +15,16 @@ export interface Service {
     is_membership?: boolean;
 }
 
-export const useServices = () => {
+export const useServices = (tenantId?: string) => {
     const [services, setServices] = useState<Service[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        fetchServices();
-    }, []);
+        if (tenantId) {
+            fetchServices();
+        }
+    }, [tenantId]);
 
     const fetchServices = async () => {
         try {
@@ -30,16 +32,22 @@ export const useServices = () => {
             setError(null);
 
             // Fetch directly naturally
-            const { data, error: err } = await supabase
+            let query = supabase
                 .from('services')
                 .select('*')
                 .eq('is_active', true)
                 .order('name', { ascending: true });
 
+            if (tenantId) {
+                query = query.eq('tenant_id', tenantId);
+            }
+
+            const { data, error: err } = await query;
+
             if (err) throw err;
 
             if (!data || data.length === 0) {
-                console.warn("No services found in DB, using mock data for demo.");
+                // console.warn("No services found in DB, using mock data for demo.");
                 setServices(MOCK_SERVICES);
             } else {
                 setServices(data as Service[]);
@@ -52,7 +60,6 @@ export const useServices = () => {
             setLoading(false);
         }
     };
-
 
     const MOCK_SERVICES: Service[] = [
         {
