@@ -29,32 +29,24 @@ export const useServices = () => {
             setLoading(true);
             setError(null);
 
-            // Create a promise that rejects after 5 seconds to force fallback
-            const fetchPromise = supabase
+            // Fetch directly naturally
+            const { data, error: err } = await supabase
                 .from('services')
                 .select('*')
                 .eq('is_active', true)
                 .order('name', { ascending: true });
 
-            const timeoutPromise = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('Timeout')), 5000)
-            );
+            if (err) throw err;
 
-            const { data, error: err } = await Promise.race([fetchPromise, timeoutPromise]) as any;
-
-            if (err) {
-                console.warn("Supabase fetch failed (services), using mock data", err);
-                // Fallback to mock data
-                setServices(MOCK_SERVICES);
-            } else if (!data || data.length === 0) {
-                console.warn("No services found, using mock data");
+            if (!data || data.length === 0) {
+                console.warn("No services found in DB, using mock data for demo.");
                 setServices(MOCK_SERVICES);
             } else {
-                setServices((data as Service[]) || []);
+                setServices(data as Service[]);
             }
         } catch (err: any) {
             console.error('Error fetching services:', err);
-            // Fallback to mock
+            // Always fallback to Mock in this MVP demo environment if connection fails
             setServices(MOCK_SERVICES);
         } finally {
             setLoading(false);

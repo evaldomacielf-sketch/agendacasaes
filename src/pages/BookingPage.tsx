@@ -3,11 +3,57 @@ import { NavProps, ScreenName } from '../types';
 import Layout from '../components/Layout';
 import Navbar from '../components/Navbar';
 import { useServices, Service } from '../hooks/useServices';
-import { useProfessionals, Professional } from '../hooks/useProfessionals';
+import { useProfessionals } from '../hooks/useProfessionals';
 import { useAvailability } from '../hooks/useAvailability';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { PhoneInput } from '../components/PhoneInput';
 import { supabase } from '../utils/supabaseClient';
+import { ServiceCard } from '../components/Booking/ServiceCard';
+import { DateHorizontalPicker } from '../components/Booking/DateHorizontalPicker';
+import { BookingSummary } from '../components/Booking/BookingSummary';
+
+// Custom Stepper Component for this Page
+const BookingStepper = ({ currentStep }: { currentStep: number }) => {
+  const steps = [
+    { num: 1, label: 'Serviço' },
+    { num: 2, label: 'Data & Horário' },
+    { num: 3, label: 'Seus Dados' }
+  ];
+
+  return (
+    <div className="w-full bg-surface-light dark:bg-background-dark pt-6 pb-2 px-4">
+      <div className="max-w-md mx-auto relative px-4">
+        {/* Line Background */}
+        <div className="absolute top-4 left-4 right-4 h-0.5 bg-gray-200 dark:bg-gray-700 -z-10" />
+        {/* Active Line */}
+        <div
+          className="absolute top-4 left-4 h-0.5 bg-primary -z-10 transition-all duration-300"
+          style={{ width: `calc(${((currentStep - 1) / 2) * 100}% - 32px)` }}
+        />
+
+        <div className="flex justify-between w-full">
+          {steps.map((s) => {
+            const isActive = s.num === currentStep;
+            const isCompleted = s.num < currentStep;
+            return (
+              <div key={s.num} className="flex flex-col items-center gap-2 bg-surface-light dark:bg-background-dark px-2">
+                <div className={`
+                    w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border-2 transition-all
+                    ${isActive || isCompleted ? 'bg-primary border-primary text-white' : 'bg-white border-gray-300 text-gray-400 dark:bg-gray-800 dark:border-gray-600'}
+                 `}>
+                  {isCompleted ? <span className="material-symbols-outlined text-[18px]">check</span> : s.num}
+                </div>
+                <span className={`text-[10px] font-bold uppercase tracking-wider ${isActive ? 'text-primary' : 'text-gray-400'}`}>
+                  {s.label}
+                </span>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const BookingScreen: React.FC<NavProps> = ({ onNavigate }) => {
   // Navigation State
@@ -15,7 +61,7 @@ const BookingScreen: React.FC<NavProps> = ({ onNavigate }) => {
 
   // Data Hooks
   const { services, loading: servicesLoading, error: servicesError } = useServices();
-  const { professionals, loading: prosLoading } = useProfessionals();
+  const { professionals } = useProfessionals();
 
   // Selection State
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
@@ -33,16 +79,21 @@ const BookingScreen: React.FC<NavProps> = ({ onNavigate }) => {
   const [clientNotes, setClientNotes] = useState('');
   const [notifySms, setNotifySms] = useState(true);
   const [notifyEmail, setNotifyEmail] = useState(true);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Availability Hook
   const { slots, loading: slotsLoading } = useAvailability(selectedDate, selectedProfessional);
 
-  // --- STEP 1 LOGIC ---
+  // Computed
   const categories = ['Todos', ...Array.from(new Set(services.map(s => s.category || 'Geral')))];
 
-  // --- HANDLERS ---
+  const totalValue = services
+    .filter(s => selectedServices.includes(s.id))
+    .reduce((acc, curr) => acc + curr.price, 0);
+
+  // Handlers
   const toggleService = (serviceId: string) => {
     setSelectedServices(prev => prev.includes(serviceId) ? prev.filter(id => id !== serviceId) : [...prev, serviceId]);
   };
@@ -68,142 +119,116 @@ const BookingScreen: React.FC<NavProps> = ({ onNavigate }) => {
   };
 
   const handleSubmit = async () => {
+    if (!acceptedTerms) {
+      alert("Por favor, aceite os termos e política de cancelamento.");
+      return;
+    }
     setIsSubmitting(true);
-
     try {
-      console.log("Submitting Booking...", {
-        client: { name: clientName, email: clientEmail, phone: clientPhone, firstVisit: isFirstVisit, notes: clientNotes },
-        booking: { services: selectedServices, professional: selectedProfessional, date: selectedDate, time: selectedTime }
-      });
-
-      // 1. Get Tenant ID (Hardcoded for now as we are on a specific route or subdomain, usually fetched from context)
-      // For this demo, we'll fetch the first tenant or use a hardcoded UUID if we knew one.
-      // Let's assume we are the first tenant in the 'saloes' table.
+      // 1. Tenant
       const { data: tenantData } = await supabase.from('saloes').select('id').limit(1).single();
       const tenantId = tenantData?.id;
-
       if (!tenantId) throw new Error("Tenant not found");
 
-      // 2. Upsert Client (By Phone or Email)
-      // Ideally we check if exists first. For simplicity, we insert and let Supabase return the ID.
-      // In a real app we'd use upsert on a unique constraint (email or phone).
-      // Since 'clients' doesn't have a unique constraint on phone in the schema shown (only PK), we'll do a check first.
-
+      // 2. Upsert Client
       let clientId: string | null = null;
-
-      // Check by Phone (primary identifier often)
-      const { data: existingClient } = await supabase
-        .from('clients')
-        .select('id')
-        .eq('tenant_id', tenantId)
-        .eq('phone', clientPhone)
-        .maybeSingle();
+      // Check by Phone for simple dedup
+      const { data: existingClient } = await supabase.from('clients').select('id').eq('tenant_id', tenantId).eq('phone', clientPhone).maybeSingle();
 
       if (existingClient) {
         clientId = existingClient.id;
-        // Optionally update info
       } else {
-        const { data: newClient, error: clientError } = await supabase
-          .from('clients')
-          .insert({
-            tenant_id: tenantId,
-            full_name: clientName,
-            phone: clientPhone,
-            email: clientEmail || null,
-            notes: clientNotes
-          })
-          .select('id')
-          .single();
-
+        const { data: newClient, error: clientError } = await supabase.from('clients').insert({
+          tenant_id: tenantId, full_name: clientName, phone: clientPhone, email: clientEmail || null, notes: clientNotes
+        }).select('id').single();
         if (clientError) throw clientError;
         clientId = newClient.id;
       }
 
-      // 3. Insert Appointment
-      // Calculate End Time (Start + Duration)
-      const serviceId = selectedServices[0]; // Assuming single service for now
-      const service = services.find(s => s.id === serviceId);
-      const duration = service?.duration_minutes || 60;
+      // 3. Insert Appointments (Create one per service or grouped? usually one booking with multiple items, but schema is 1 service per appointment)
+      // We will loop and create multiple appointments for MVP Step 1 logic
+      // OR better, create one appointment and put others in notes/or multiple inserts.
+      // For this MVP schema, let's create 1 appointment for the primary service and note the others, OR creates N appointments.
+      // Creating N appointments might be overlapping.
+      // Let's create just 1 for the first service selected to keep MVP simple, assuming multi-select is for package logic that might not be fully DB ready.
+      // BETTER: Insert ALL services at the SAME start time? That's double booking.
+      // Logic: Iterate duration.
+      let currentStartTime = new Date(selectedDate);
+      const [h, m] = (selectedTime || '00:00').split(':').map(Number);
+      currentStartTime.setHours(h, m, 0, 0);
 
-      // Parse Date + Time
-      const [hours, minutes] = (selectedTime || '00:00').split(':').map(Number);
-      const startTime = new Date(selectedDate);
-      startTime.setHours(hours, minutes, 0, 0);
+      const selectedServiceObjects = services.filter(s => selectedServices.includes(s.id));
 
-      const endTime = new Date(startTime);
-      endTime.setMinutes(endTime.getMinutes() + duration);
+      // We insert the main booking for the first service
+      // And we might just create multiple records
+      for (const service of selectedServiceObjects) {
+        const endTime = new Date(currentStartTime);
+        endTime.setMinutes(endTime.getMinutes() + service.duration_minutes);
 
-      const { data: appointment, error: bookingError } = await supabase
-        .from('appointments')
-        .insert({
+        await supabase.from('appointments').insert({
           tenant_id: tenantId,
           client_id: clientId,
-          service_id: serviceId,
-          staff_id: selectedProfessional, // might be null if 'Any'
-          start_time: startTime.toISOString(),
+          service_id: service.id,
+          staff_id: selectedProfessional,
+          start_time: currentStartTime.toISOString(),
           end_time: endTime.toISOString(),
           status: 'scheduled',
           notes: clientNotes
-        })
-        .select('id')
-        .single();
+        });
 
-      if (bookingError) throw bookingError;
+        // Shift start time for next service (sequential)
+        currentStartTime = endTime;
+      }
 
-      // 4. Trigger Notification (Edge Function)
-      // Even if there's a DB trigger, calling it explicitly ensures feedback for the user in this demo context
-      // and guarantees the email logic runs immediately.
-      await supabase.functions.invoke('agent-notifications', {
-        body: { appointment_id: appointment.id, type: 'confirmation' }
-      });
+      // 4. Notify
+      // Invoke Notification Agent (fire and forget usually, but await here is fine)
+      try {
+        // Just trigger for the first one or a general "confirmation"
+        // We won't block on this
+        supabase.functions.invoke('agent-notifications', { body: { type: 'confirmation', client_name: clientName } });
+      } catch (e) { console.warn("Notification error", e) }
 
-      // Mock success + Real Success
-      alert(`Agendamento Confirmado! \nObrigado, ${clientName.split(' ')[0]}!\nEnviamos os detalhes para ${clientEmail || clientPhone}.`);
 
+      alert(`Agendamento Confirmado! \nObrigado, ${clientName.split(' ')[0]}!`);
       if (onNavigate) onNavigate(ScreenName.LANDING);
+
     } catch (err: any) {
       console.error("Booking Error:", err);
-      // Fallback for Demo/Mock mode if DB fails
       if (err.message && err.message.includes('fetch')) {
         alert("Modo Offline: Agendamento simulado com sucesso!");
         if (onNavigate) onNavigate(ScreenName.LANDING);
       } else {
-        alert(`Erro ao realizar agendamento: ${err.message || 'Tente novamente.'}`);
+        alert(`Erro: ${err.message}`);
       }
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const getStepLabel = () => {
-    switch (currentStep) {
-      case 1: return "Escolher Serviço";
-      case 2: return "Profissional e Data";
-      case 3: return "Confirmação";
-      default: return "Agendamento";
-    }
-  };
 
-  // --- RENDERERS ---
+  // --- Render Steps ---
 
   const renderStep1 = () => {
     const filteredServices = services.filter(service => activeCategory === 'Todos' || service.category === activeCategory);
 
     return (
       <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-        <div className="space-y-2">
-          <h2 className="text-2xl font-bold text-text-main dark:text-white leading-tight">Qual serviço você deseja?</h2>
+        <div className="space-y-1">
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white">Qual serviço você deseja?</h2>
           <p className="text-sm text-gray-500">Selecione um ou mais procedimentos.</p>
         </div>
 
         {/* Categories */}
-        <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2 -mx-4 px-4 sticky top-[110px] bg-background-light dark:bg-background-dark z-10 py-2">
+        <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2 -mx-4 px-4 sticky top-0 bg-background-light dark:bg-background-dark z-10 py-2">
           {categories.map(cat => (
             <button
               key={cat}
               onClick={() => setActiveCategory(cat)}
-              className={`shrink-0 px-4 py-2 rounded-full font-medium text-sm transition-all ${activeCategory === cat ? 'bg-primary text-text-main shadow-md transform scale-105' : 'bg-surface-light border border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 text-gray-600'
-                }`}
+              className={`shrink-0 px-4 py-1.5 rounded-full font-medium text-sm transition-all whitespace-nowrap 
+                        ${activeCategory === cat
+                  ? 'bg-primary text-white shadow-md'
+                  : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 dark:bg-surface-dark dark:border-gray-700 dark:text-gray-300'}
+                    `}
             >
               {cat}
             </button>
@@ -211,223 +236,208 @@ const BookingScreen: React.FC<NavProps> = ({ onNavigate }) => {
         </div>
 
         {/* List */}
-        <div className="space-y-3 min-h-[300px]">
-          {servicesLoading ? <div className="flex justify-center py-10"><LoadingSpinner /></div> :
-            servicesError ? <div className="text-red-500 text-center">Erro ao carregar serviços.</div> :
-              filteredServices.length === 0 ? <div className="text-gray-500 text-center py-10">Nenhum serviço encontrado.</div> :
-                filteredServices.map(service => {
-                  const isSelected = selectedServices.includes(service.id);
-                  return (
-                    <div key={service.id} onClick={() => toggleService(service.id)} className={`group relative flex flex-col bg-surface-light dark:bg-surface-dark rounded-xl p-4 shadow-sm cursor-pointer transition-all border-2 ${isSelected ? 'border-primary bg-primary/5' : 'border-transparent hover:border-primary/30'} ring-1 ring-gray-100 dark:ring-gray-800`}>
-                      <div className="flex justify-between items-start gap-4">
-                        {service.image && <div className="w-20 h-20 rounded-lg overflow-hidden shrink-0 bg-gray-200"><img src={service.image} alt={`Imagem de ${service.name}`} className="w-full h-full object-cover" /></div>}
-                        <div className="flex-1">
-                          <div className="flex justify-between">
-                            <h3 className="font-bold text-text-main dark:text-white text-lg leading-tight">{service.name}</h3>
-                            <div className={`shrink-0 size-6 rounded-full border-2 flex items-center justify-center transition-colors ml-2 ${isSelected ? 'border-primary bg-primary' : 'border-gray-300 dark:border-gray-600'}`}>
-                              {isSelected && <span className="material-symbols-outlined text-text-main text-sm font-bold">check</span>}
-                            </div>
-                          </div>
-                          <p className="text-sm text-gray-500 mt-1 line-clamp-2">{service.description || 'Sem descrição.'}</p>
-                          {(service.rating || 0) > 0 && <div className="flex items-center mt-1 gap-1"><span className="text-yellow-500 material-symbols-outlined text-sm">star</span><span className="text-xs font-bold text-slate-700 dark:text-slate-300">{service.rating}</span></div>}
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between mt-3 pt-3 border-t border-dashed border-gray-200 dark:border-gray-700">
-                        <div className="flex items-center text-sm text-gray-500"><span className="material-symbols-outlined text-[18px] mr-1">schedule</span>{service.duration_minutes} min</div>
-                        <div className="font-bold text-text-main dark:text-white text-lg">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(service.price)}</div>
-                      </div>
-                    </div>
-                  );
-                })}
-        </div>
-      </div>
-    );
-  };
-
-  const renderStep2 = () => {
-    return (
-      <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
-        <div className="space-y-2">
-          <h2 className="text-2xl font-bold text-text-main dark:text-white leading-tight">Escolha o profissional e horário</h2>
-          <p className="text-sm text-gray-500">Selecione quem irá te atender e o melhor horário.</p>
-        </div>
-
-        {/* Professionals */}
-        <div className="space-y-3">
-          <h3 className="font-semibold text-text-main dark:text-white">Profissional</h3>
-          <div className="flex gap-4 overflow-x-auto no-scrollbar py-1">
-            <button
-              onClick={() => setSelectedProfessional(null)}
-              className={`shrink-0 flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all w-28 ${selectedProfessional === null ? 'border-primary bg-primary/5' : 'border-gray-200 dark:border-gray-700 bg-surface-light dark:bg-surface-dark'}`}
-            >
-              <div className="size-14 rounded-full bg-primary/20 flex items-center justify-center"><span className="material-symbols-outlined text-primary text-2xl">groups</span></div>
-              <div className="text-center"><p className="text-sm font-bold leading-tight">Qualquer um</p><p className="text-xs text-green-600 font-medium">Mais rápido</p></div>
-            </button>
-
-            {professionals.map(pro => (
-              <button
-                key={pro.id}
-                onClick={() => setSelectedProfessional(pro.id)}
-                className={`shrink-0 flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all w-28 ${selectedProfessional === pro.id ? 'border-primary bg-primary/5' : 'border-gray-200 dark:border-gray-700 bg-surface-light dark:bg-surface-dark'}`}
-              >
-                <div className="size-14 rounded-full bg-gray-200 overflow-hidden"><img src={pro.avatar_url || `https://ui-avatars.com/api/?name=${pro.full_name}&background=random`} alt={`Foto de ${pro.full_name}`} title={pro.full_name} className="w-full h-full object-cover" /></div>
-                <div className="text-center">
-                  <p className="text-sm font-bold leading-tight truncate w-full">{pro.full_name?.split(' ')[0] || 'Unknown'}</p>
-                  <div className="flex items-center justify-center gap-0.5"><span className="text-yellow-500 material-symbols-outlined text-[10px]">star</span><span className="text-xs text-gray-500">{pro.rating}</span></div>
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Time Grid */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-text-main dark:text-white">Horários disponíveis</h3>
-            <span className="text-sm text-primary font-medium">{selectedDate.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric' })}</span>
-          </div>
-
-          {slotsLoading ? <div className="flex justify-center py-8"><LoadingSpinner /></div> : (
-            <div className="grid grid-cols-4 gap-3">
-              {slots.map(slot => (
-                <button
-                  key={slot.time}
-                  disabled={!slot.available}
-                  onClick={() => setSelectedTime(slot.time)}
-                  className={`py-2 px-1 rounded-lg text-sm font-semibold transition-all ${!slot.available
-                    ? 'bg-gray-100 dark:bg-gray-800 text-gray-300 dark:text-gray-600 cursor-not-allowed decoration-slice line-through'
-                    : selectedTime === slot.time
-                      ? 'bg-primary text-text-main shadow-lg ring-2 ring-primary ring-offset-2 dark:ring-offset-background-dark'
-                      : 'bg-surface-light dark:bg-surface-dark border border-gray-200 dark:border-gray-700 hover:border-primary text-text-main dark:text-white'
-                    }`}
-                >
-                  {slot.time}
-                </button>
-              ))}
+        <div className="space-y-3 min-h-[300px] pb-20">
+          {servicesLoading ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map(i => <div key={i} className="h-24 bg-gray-100 dark:bg-gray-800 rounded-xl animate-pulse" />)}
             </div>
+          ) : servicesError ? (
+            <div className="text-center py-10">
+              <p className="text-red-500 mb-2">Não foi possível carregar os serviços.</p>
+              <button onClick={() => window.location.reload()} className="text-primary font-bold underline">Tentar novamente</button>
+            </div>
+          ) : filteredServices.length === 0 ? (
+            <div className="text-center py-10 text-gray-500">Nenhum serviço encontrado nesta categoria.</div>
+          ) : (
+            filteredServices.map(service => (
+              <ServiceCard
+                key={service.id}
+                service={service}
+                isSelected={selectedServices.includes(service.id)}
+                onToggle={toggleService}
+              />
+            ))
           )}
         </div>
       </div>
     );
   };
 
-  const renderStep3 = () => {
+  const renderStep2 = () => {
+    // Group slots
+    const morningSlots = slots.filter(s => parseInt(s.time.split(':')[0]) < 12);
+    const afternoonSlots = slots.filter(s => { const h = parseInt(s.time.split(':')[0]); return h >= 12 && h < 18; });
+    const eveningSlots = slots.filter(s => parseInt(s.time.split(':')[0]) >= 18);
+
+    const renderSlotGroup = (title: string, groupSlots: typeof slots) => {
+      if (groupSlots.length === 0) return null;
+      return (
+        <div className="mb-4">
+          <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">{title}</h4>
+          <div className="grid grid-cols-4 gap-2">
+            {groupSlots.map(slot => (
+              <button
+                key={slot.time}
+                disabled={!slot.available}
+                onClick={() => setSelectedTime(slot.time)}
+                className={`py-2 rounded-lg text-sm font-semibold transition-all ${!slot.available
+                    ? 'bg-gray-50 text-gray-300 dark:bg-gray-800/50 dark:text-gray-700 cursor-not-allowed line-through'
+                    : selectedTime === slot.time
+                      ? 'bg-primary text-white shadow-md scale-105'
+                      : 'bg-white border border-gray-200 dark:bg-surface-dark dark:border-gray-700 text-slate-700 dark:text-gray-200 hover:border-primary'
+                  }`}
+              >
+                {slot.time}
+              </button>
+            ))}
+          </div>
+        </div>
+      )
+    };
+
     return (
-      <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-        <div className="space-y-2">
-          <h2 className="text-2xl font-bold text-text-main dark:text-white leading-tight">Confirme seus dados</h2>
-          <p className="text-sm text-gray-500">Informe seus dados para finalizarmos o agendamento.</p>
+      <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300 pb-20">
+        <div className="space-y-1">
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white">Quando você quer ir?</h2>
+          <p className="text-sm text-gray-500">Escolha o dia e o horário.</p>
         </div>
 
-        <div className="space-y-4">
-          {/* Name */}
-          <div className="space-y-1">
-            <label className="text-slate-900 dark:text-gray-200 text-sm font-medium">Nome Completo</label>
-            <input
-              type="text"
-              value={clientName}
-              onChange={e => setClientName(e.target.value)}
-              placeholder="Ex: João da Silva"
-              className="w-full rounded-xl border border-[#d2e5dd] dark:border-[#2a4035] bg-surface-light dark:bg-surface-dark focus:border-primary focus:ring-1 focus:ring-primary h-14 px-4 text-base text-slate-900 dark:text-white shadow-sm"
-            />
-          </div>
+        <DateHorizontalPicker selectedDate={selectedDate} onSelectDate={setSelectedDate} />
 
-          {/* Phone */}
-          <PhoneInput value={clientPhone} onChange={setClientPhone} />
-
-          {/* Email */}
-          <div className="space-y-1">
-            <label className="text-slate-900 dark:text-gray-200 text-sm font-medium">E-mail (opcional)</label>
-            <input
-              type="email"
-              value={clientEmail}
-              onChange={e => setClientEmail(e.target.value)}
-              placeholder="exemplo@email.com"
-              className="w-full rounded-xl border border-[#d2e5dd] dark:border-[#2a4035] bg-surface-light dark:bg-surface-dark focus:border-primary focus:ring-1 focus:ring-primary h-14 px-4 text-base text-slate-900 dark:text-white shadow-sm"
-            />
-          </div>
-
-          {/* Checkboxes */}
-          <div className="pt-2 gap-4 flex flex-col">
-            <label className="flex items-center gap-3 p-3 border border-gray-100 dark:border-gray-700 rounded-xl bg-surface-light dark:bg-surface-dark cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-              <input type="checkbox" checked={isFirstVisit} onChange={e => setIsFirstVisit(e.target.checked)} className="w-5 h-5 rounded text-primary focus:ring-primary border-gray-300" />
-              <span className="text-sm font-medium text-text-main dark:text-white">É minha primeira visita</span>
-            </label>
-          </div>
-
-          {/* Notes */}
-          <div className="space-y-1">
-            <label className="text-slate-900 dark:text-gray-200 text-sm font-medium">Informações Adicionais</label>
-            <textarea
-              value={clientNotes}
-              onChange={e => setClientNotes(e.target.value)}
-              placeholder="Ex: Tenho alergia a..."
-              className="w-full rounded-xl border border-[#d2e5dd] dark:border-[#2a4035] bg-surface-light dark:bg-surface-dark focus:border-primary focus:ring-1 focus:ring-primary p-4 text-base text-slate-900 dark:text-white shadow-sm min-h-[100px]"
-            />
-          </div>
-
-          {/* Notification Prefs */}
-          <div className="space-y-3 pt-2">
-            <p className="text-sm font-medium text-slate-900 dark:text-white">Notificações</p>
-            <div className="flex gap-4">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={notifySms} onChange={e => setNotifySms(e.target.checked)} className="w-4 h-4 rounded text-primary focus:ring-primary border-gray-300" />
-                <span className="text-sm text-gray-600 dark:text-gray-400">SMS / WhatsApp</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={notifyEmail} onChange={e => setNotifyEmail(e.target.checked)} className="w-4 h-4 rounded text-primary focus:ring-primary border-gray-300" />
-                <span className="text-sm text-gray-600 dark:text-gray-400">E-mail</span>
-              </label>
+        <div className="mt-6">
+          <h3 className="font-bold text-lg mb-3 text-slate-900 dark:text-white">Horários</h3>
+          {slotsLoading ? (
+            <div className="grid grid-cols-4 gap-2">
+              {[1, 2, 3, 4, 5, 6, 7, 8].map(i => <div key={i} className="h-10 bg-gray-100 dark:bg-gray-800 rounded-lg animate-pulse" />)}
             </div>
+          ) : (
+            <>
+              {renderSlotGroup('Manhã', morningSlots)}
+              {renderSlotGroup('Tarde', afternoonSlots)}
+              {renderSlotGroup('Noite', eveningSlots)}
+            </>
+          )}
+        </div>
+
+        {/* Professional Choice (Simplified) */}
+        <div className="mt-6">
+          <h3 className="font-bold text-lg mb-3 text-slate-900 dark:text-white">Profissional (Opcional)</h3>
+          <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2">
+            <button
+              onClick={() => setSelectedProfessional(null)}
+              className={`shrink-0 flex items-center gap-2 px-4 py-2 rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-surface-dark ${selectedProfessional === null ? 'ring-2 ring-primary border-transparent' : ''}`}
+            >
+              <span className="material-symbols-outlined text-gray-500">groups</span>
+              <span className="text-sm font-medium">Qualquer um</span>
+            </button>
+            {professionals.map(pro => (
+              <button
+                key={pro.id}
+                onClick={() => setSelectedProfessional(pro.id)}
+                className={`shrink-0 flex items-center gap-2 px-4 py-2 rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-surface-dark ${selectedProfessional === pro.id ? 'ring-2 ring-primary border-transparent' : ''}`}
+              >
+                <div className="w-6 h-6 rounded-full bg-gray-200 overflow-hidden">
+                  <img src={pro.avatar_url || `https://ui-avatars.com/api/?name=${pro.full_name}`} alt="" className="w-full h-full object-cover" />
+                </div>
+                <span className="text-sm font-medium whitespace-nowrap">{pro.full_name?.split(' ')[0]}</span>
+              </button>
+            ))}
           </div>
         </div>
       </div>
     );
   };
 
-  return (
-    <Layout>
-      <Navbar
-        onNavigate={onNavigate}
-        variant="steps"
-        step={{
-          current: currentStep,
-          total: 3,
-          label: getStepLabel(),
-          subLabel: `Passo ${currentStep} de 3`
-        }}
+  const renderStep3 = () => (
+    <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300 pb-20">
+      <BookingSummary
+        selectedServices={selectedServices}
+        services={services}
+        selectedDate={selectedDate}
+        selectedTime={selectedTime}
+        totalValue={totalValue}
       />
 
-      <main className="w-full max-w-md mx-auto pt-[120px] px-4 pb-32">
+      <div className="space-y-4">
+        <h3 className="font-bold text-lg text-slate-900 dark:text-white">Seus Dados</h3>
+        <div className="space-y-3">
+          <input
+            type="text" placeholder="Nome Completo *"
+            value={clientName} onChange={e => setClientName(e.target.value)}
+            className="w-full rounded-xl border-gray-200 bg-white p-3 text-sm focus:ring-primary focus:border-primary dark:bg-surface-dark dark:border-gray-700"
+          />
+          <PhoneInput value={clientPhone} onChange={setClientPhone} />
+          <input
+            type="email" placeholder="E-mail (opcional)"
+            value={clientEmail} onChange={e => setClientEmail(e.target.value)}
+            className="w-full rounded-xl border-gray-200 bg-white p-3 text-sm focus:ring-primary focus:border-primary dark:bg-surface-dark dark:border-gray-700"
+          />
+          <textarea
+            placeholder="Observações (alergias, preferências...)"
+            value={clientNotes} onChange={e => setClientNotes(e.target.value)}
+            className="w-full rounded-xl border-gray-200 bg-white p-3 text-sm focus:ring-primary focus:border-primary dark:bg-surface-dark dark:border-gray-700 min-h-[80px]"
+          />
+        </div>
+
+        <div className="space-y-2 pt-2">
+          <label className="flex items-start gap-3 cursor-pointer">
+            <input type="checkbox" checked={acceptedTerms} onChange={e => setAcceptedTerms(e.target.checked)} className="mt-1 rounded border-gray-300 text-primary focus:ring-primary" />
+            <span className="text-xs text-gray-500">Li e aceito os <span className="underline">termos de uso</span> e a <span className="underline">política de cancelamento</span> (cancelamento gratuito até 24h antes).</span>
+          </label>
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input type="checkbox" checked={notifySms} onChange={e => setNotifySms(e.target.checked)} className="rounded border-gray-300 text-primary focus:ring-primary" />
+            <span className="text-xs text-gray-500">Receber lembretes via WhatsApp/SMS</span>
+          </label>
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <Layout>
+      {/* Navbar Title Only */}
+      <Navbar variant="back" title="Agendamento" onNavigate={onNavigate} />
+
+      {/* Custom Stepper */}
+      <div className="pt-16 bg-surface-light dark:bg-background-dark">
+        <BookingStepper currentStep={currentStep} />
+      </div>
+
+      <main className="w-full max-w-md mx-auto pt-6 px-4 pb-32">
         {currentStep === 1 && renderStep1()}
         {currentStep === 2 && renderStep2()}
         {currentStep === 3 && renderStep3()}
       </main>
 
-      <div className="fixed bottom-0 left-0 w-full bg-surface-light border-t border-gray-100 dark:bg-background-dark dark:border-gray-800 p-4 pb-8 z-40 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+      {/* Footer Actions */}
+      <div className="fixed bottom-0 left-0 w-full bg-white dark:bg-surface-dark border-t border-gray-100 dark:border-gray-800 p-4 pb-8 z-40 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
         <div className="w-full max-w-md mx-auto flex gap-3">
-          <button
-            onClick={handleBack}
-            disabled={isSubmitting}
-            className="flex-1 py-3.5 px-6 rounded-lg border border-gray-300 dark:border-gray-600 text-text-main dark:text-white font-semibold hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors disabled:opacity-50"
-          >
-            Voltar
-          </button>
+          {currentStep > 1 && (
+            <button
+              onClick={handleBack}
+              className="flex-1 py-3.5 px-6 rounded-xl border border-gray-200 dark:border-gray-700 text-slate-700 dark:text-white font-semibold hover:bg-gray-50 transition-colors"
+            >
+              Voltar
+            </button>
+          )}
+
           <button
             onClick={handleContinue}
             disabled={
               isSubmitting ||
               (currentStep === 1 && selectedServices.length === 0) ||
               (currentStep === 2 && !selectedTime) ||
-              (currentStep === 3 && (clientName.length < 3 || clientPhone.length < 10))
+              (currentStep === 3 && (clientName.length < 3 || clientPhone.length < 10 || !acceptedTerms))
             }
-            className={`flex-[2] py-3.5 px-6 rounded-lg font-bold shadow-lg transition-all transform active:scale-[0.98] flex items-center justify-center gap-2 ${(currentStep === 1 && selectedServices.length > 0) || (currentStep === 2 && selectedTime) || (currentStep === 3 && clientName.length >= 3 && clientPhone.length >= 10)
-              ? 'bg-primary text-text-main hover:bg-primary-dark shadow-primary/30'
-              : 'bg-gray-300 text-gray-500 cursor-not-allowed dark:bg-gray-700'
-              }`}
+            className={`flex-[2] py-3.5 px-6 rounded-xl font-bold text-white shadow-lg transition-all flex items-center justify-center gap-2
+                    ${(currentStep === 1 && selectedServices.length > 0) || (currentStep === 2 && selectedTime) || (currentStep === 3 && clientName.length >= 3 && clientPhone.length >= 10 && acceptedTerms)
+                ? 'bg-primary hover:bg-primary-dark shadow-primary/25'
+                : 'bg-gray-300 dark:bg-gray-700 text-gray-500 cursor-not-allowed shadow-none'
+              }
+                `}
           >
             {isSubmitting ? <LoadingSpinner /> : (
-              currentStep === 3 ? 'Confirmar Agendamento' : `Continuar ${currentStep === 1 && selectedServices.length > 0 ? `(${selectedServices.length})` : ''}`
+              currentStep === 3 ? 'Confirmar Agendamento' : 'Continuar'
             )}
           </button>
         </div>
