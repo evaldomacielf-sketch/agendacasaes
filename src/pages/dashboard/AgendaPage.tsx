@@ -157,7 +157,7 @@ const AgendaScreen: React.FC<NavProps> = ({ onNavigate }) => {
                                 <div
                                     key={appt.id}
                                     className={`absolute left-2 right-4 pointer-events-auto rounded-lg border p-2 shadow-sm cursor-pointer hover:brightness-95 transition-all min-h-[40px] ${getStatusColor(appt.status)}`}
-                                    style={{ top: pos.top, height: pos.height }}
+                                    style={{ top: pos.top, height: pos.height }} // eslint-disable-line
                                 >
                                     <div className="flex justify-between items-start">
                                         <span className="font-bold text-sm truncate">{appt.client?.name || 'Cliente sem nome'}</span>
