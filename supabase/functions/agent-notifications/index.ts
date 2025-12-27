@@ -8,7 +8,7 @@ console.log("Hello from agent-notifications!");
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 
-serve(async (req) => {
+serve(async (req: Request) => {
     if (req.method === 'OPTIONS') {
         return new Response('ok', { headers: corsHeaders });
     }

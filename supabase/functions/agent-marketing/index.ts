@@ -1,6 +1,6 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 import { initVertexAI, getGeminiModel } from "../_shared/vertex-ai.ts";
 
@@ -8,7 +8,7 @@ console.log("Hello from agent-marketing-advanced!");
 
 // --- TOOLS: SEGMENTATION ---
 
-async function segmentClients(supabase: any, tenantId: string, criteria: any) {
+async function segmentClients(supabase: SupabaseClient, tenantId: string, criteria: any) {
     const { type, days_since_visit, min_spend, min_visits } = criteria;
     let query = supabase.from("clients").select("id, full_name, email").eq("tenant_id", tenantId);
 
@@ -46,7 +46,7 @@ async function segmentClients(supabase: any, tenantId: string, criteria: any) {
 
 // --- MAIN AGENT ---
 
-serve(async (req) => {
+serve(async (req: Request) => {
     if (req.method === "OPTIONS") {
         return new Response("ok", { headers: corsHeaders });
     }
@@ -127,9 +127,9 @@ serve(async (req) => {
 
         throw new Error("Invalid action. Use 'create_campaign'");
 
-    } catch (error) {
+    } catch (error: unknown) {
         console.error("Agent Error:", error);
-        return new Response(JSON.stringify({ error: error.message }), {
+        return new Response(JSON.stringify({ error: error instanceof Error ? error.message : String(error) }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
             status: 400,
         });

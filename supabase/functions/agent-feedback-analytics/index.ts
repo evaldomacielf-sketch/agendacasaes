@@ -6,7 +6,7 @@ import { initVertexAI, getGeminiModel } from "../_shared/vertex-ai.ts";
 
 console.log("Hello from agent-feedback-analytics!");
 
-serve(async (req) => {
+serve(async (req: Request) => {
     if (req.method === "OPTIONS") {
         return new Response("ok", { headers: corsHeaders });
     }
@@ -72,7 +72,7 @@ serve(async (req) => {
             }
 
             // Prepare text for LLM
-            const reviewsText = reviews.map(r => `[${r.rating}/5] ${r.comment}`).join("\n");
+            const reviewsText = reviews.map((r: any) => `[${r.rating}/5] ${r.comment}`).join("\n");
 
             const vertex_ai = initVertexAI();
             const model = getGeminiModel(vertex_ai, "gemini-1.5-pro");
@@ -109,9 +109,9 @@ serve(async (req) => {
 
         throw new Error("Invalid action. Use 'trends' or 'insights'");
 
-    } catch (error) {
+    } catch (error: unknown) {
         console.error("Agent analytics Error:", error);
-        return new Response(JSON.stringify({ error: error.message }), {
+        return new Response(JSON.stringify({ error: error instanceof Error ? error.message : String(error) }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
             status: 400,
         });

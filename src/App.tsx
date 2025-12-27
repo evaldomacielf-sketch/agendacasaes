@@ -34,7 +34,7 @@ const SettingsPage = React.lazy(() => import('./pages/dashboard/SettingsPage'));
 
 const App: React.FC = () => {
   return (
-    <Sentry.ErrorBoundary fallback={({ error, resetErrorBoundary }) => <ErrorFallback error={error} resetErrorBoundary={resetErrorBoundary} />}>
+    <Sentry.ErrorBoundary fallback={({ error, resetError }) => <ErrorFallback error={error as Error} resetErrorBoundary={resetError} />}>
       <AuthProvider>
         <BrowserRouter>
           <div className="min-h-screen bg-background-light dark:bg-background-dark font-sans text-text-main">

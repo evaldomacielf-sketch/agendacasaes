@@ -5,7 +5,7 @@ import { corsHeaders } from "../_shared/cors.ts";
 
 console.log("Hello from calculate-commissions!");
 
-serve(async (req) => {
+serve(async (req: Request) => {
     if (req.method === "OPTIONS") {
         return new Response("ok", { headers: corsHeaders });
     }
@@ -71,8 +71,8 @@ serve(async (req) => {
             status: 200,
         });
 
-    } catch (error) {
-        return new Response(JSON.stringify({ error: error.message }), {
+    } catch (error: unknown) {
+        return new Response(JSON.stringify({ error: error instanceof Error ? error.message : String(error) }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
             status: 400,
         });

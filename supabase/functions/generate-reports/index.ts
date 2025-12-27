@@ -5,7 +5,7 @@ import { corsHeaders } from "../_shared/cors.ts";
 
 console.log("Hello from generate-reports!");
 
-serve(async (req) => {
+serve(async (req: Request) => {
     if (req.method === "OPTIONS") {
         return new Response("ok", { headers: corsHeaders });
     }
@@ -49,12 +49,12 @@ serve(async (req) => {
             if (error) throw error;
 
             const income = transactions
-                .filter(t => t.type === 'income')
-                .reduce((sum, t) => sum + t.amount, 0);
+                .filter((t: any) => t.type === 'income')
+                .reduce((sum: number, t: any) => sum + t.amount, 0);
 
             const expense = transactions
-                .filter(t => t.type === 'expense')
-                .reduce((sum, t) => sum + t.amount, 0);
+                .filter((t: any) => t.type === 'expense')
+                .reduce((sum: number, t: any) => sum + t.amount, 0);
 
             result = {
                 period: { start: start_date, end: end_date },
@@ -72,8 +72,8 @@ serve(async (req) => {
             status: 200,
         });
 
-    } catch (error) {
-        return new Response(JSON.stringify({ error: error.message }), {
+    } catch (error: unknown) {
+        return new Response(JSON.stringify({ error: error instanceof Error ? error.message : String(error) }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
             status: 400,
         });

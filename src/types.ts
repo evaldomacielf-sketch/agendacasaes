@@ -19,6 +19,7 @@ export enum ScreenName {
   DASHBOARD_SETTINGS = 'DASHBOARD_SETTINGS',
 }
 
+// Make onNavigate optional as many routes don't pass it explicitly (using react-router hooks instead)
 export interface NavProps {
-  onNavigate: (screen: ScreenName) => void;
+  onNavigate?: (screen: ScreenName) => void;
 }

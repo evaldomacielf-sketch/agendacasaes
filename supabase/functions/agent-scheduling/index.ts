@@ -1,6 +1,6 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 import { initVertexAI, getGeminiModel } from "../_shared/vertex-ai.ts";
 
@@ -13,7 +13,7 @@ console.log("Hello from agent-scheduling-advanced!");
  * Fetches busy times and calculates gaps. 
  * specific logic would go here to subtract busy slots from business hours.
  */
-async function getAvailability(supabase: any, tenantId: string, date: string) {
+async function getAvailability(supabase: SupabaseClient, tenantId: string, date: string) {
     const startOfDay = `${date}T00:00:00`;
     const endOfDay = `${date}T23:59:59`;
 
@@ -33,7 +33,7 @@ async function getAvailability(supabase: any, tenantId: string, date: string) {
  * Tool: getClientPreferences
  * Fetches manual notes or inferred preferences from profile.
  */
-async function getClientPreferences(supabase: any, clientId: string) {
+async function getClientPreferences(supabase: SupabaseClient, clientId: string) {
     if (!clientId) return "Unknown client";
     const { data: client, error } = await supabase
         .from("clients")
@@ -51,7 +51,7 @@ async function getClientPreferences(supabase: any, clientId: string) {
  * Tool: getClientHistory
  * Summarizes past services to find patterns (e.g., usually comes at 18:00).
  */
-async function getClientHistory(supabase: any, clientId: string) {
+async function getClientHistory(supabase: SupabaseClient, clientId: string) {
     if (!clientId) return [];
 
     const { data: history, error } = await supabase
@@ -70,7 +70,7 @@ async function getClientHistory(supabase: any, clientId: string) {
 
 // --- MAIN AGENT LOGIC ---
 
-serve(async (req) => {
+serve(async (req: Request) => {
     if (req.method === "OPTIONS") {
         return new Response("ok", { headers: corsHeaders });
     }
@@ -168,9 +168,9 @@ serve(async (req) => {
             status: 200,
         });
 
-    } catch (error) {
+    } catch (error: unknown) {
         console.error("Agent Error:", error);
-        return new Response(JSON.stringify({ error: error.message }), {
+        return new Response(JSON.stringify({ error: error instanceof Error ? error.message : String(error) }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
             status: 400,
         });

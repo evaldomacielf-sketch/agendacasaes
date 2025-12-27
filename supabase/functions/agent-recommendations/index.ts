@@ -1,6 +1,6 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 import { initVertexAI, getGeminiModel } from "../_shared/vertex-ai.ts";
 
@@ -8,7 +8,7 @@ console.log("Hello from agent-recommendations-advanced!");
 
 // --- TOOLS ---
 
-async function getClientHistory(supabase: any, clientId: string) {
+async function getClientHistory(supabase: SupabaseClient, clientId: string) {
     const { data, error } = await supabase
         .from("appointments")
         .select("services(name, category), start_time") // Added category if exists
@@ -20,7 +20,7 @@ async function getClientHistory(supabase: any, clientId: string) {
     return data.map((d: any) => d.services?.name).filter(Boolean);
 }
 
-async function logRecommendation(supabase: any, tenantId: string, clientId: string, serviceId: string, score: number) {
+async function logRecommendation(supabase: SupabaseClient, tenantId: string, clientId: string, serviceId: string, score: number) {
     await supabase.from("recommendation_logs").insert({
         tenant_id: tenantId,
         client_id: clientId,
@@ -32,7 +32,7 @@ async function logRecommendation(supabase: any, tenantId: string, clientId: stri
 
 // --- MAIN AGENT ---
 
-serve(async (req) => {
+serve(async (req: Request) => {
     if (req.method === "OPTIONS") {
         return new Response("ok", { headers: corsHeaders });
     }

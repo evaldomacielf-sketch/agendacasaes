@@ -1,6 +1,6 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 import { initVertexAI, getGeminiModel, getEmbeddings } from "../_shared/vertex-ai.ts";
 
@@ -8,7 +8,7 @@ console.log("Hello from agent-feedback-advanced!");
 
 // --- TOOLS ---
 
-async function createAlert(supabase: any, tenantId: string, message: string) {
+async function createAlert(supabase: SupabaseClient, tenantId: string, message: string) {
     // We notify all 'admin'/'manager' profiles for the tenant
     const { data: managers } = await supabase
         .from("profiles")
@@ -29,7 +29,7 @@ async function createAlert(supabase: any, tenantId: string, message: string) {
     }
 }
 
-async function updateReviewAnalysis(supabase: any, reviewId: string, analysis: any, embedding: any) {
+async function updateReviewAnalysis(supabase: SupabaseClient, reviewId: string, analysis: any, embedding: any) {
     // Map sentiment to score -1 to 1
     let score = 0;
     if (analysis.sentiment === "Positive") score = 0.8;
@@ -49,7 +49,7 @@ async function updateReviewAnalysis(supabase: any, reviewId: string, analysis: a
 
 // --- MAIN AGENT ---
 
-serve(async (req) => {
+serve(async (req: Request) => {
     if (req.method === "OPTIONS") {
         return new Response("ok", { headers: corsHeaders });
     }
@@ -134,9 +134,9 @@ serve(async (req) => {
             status: 200,
         });
 
-    } catch (error) {
+    } catch (error: unknown) {
         console.error("Agent Error:", error);
-        return new Response(JSON.stringify({ error: error.message }), {
+        return new Response(JSON.stringify({ error: error instanceof Error ? error.message : String(error) }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
             status: 400,
         });
