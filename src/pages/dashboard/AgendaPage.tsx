@@ -5,6 +5,7 @@ import { useAppointments, Appointment } from '../../hooks/useAppointments';
 import OnboardingTrial from '../../components/dashboard/OnboardingTrial';
 import AITipCard from '../../components/dashboard/AITipCard';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTenant } from '../../contexts/TenantContext';
 import { useAI } from '../../hooks/useAI';
 import { useServices } from '../../hooks/useServices';
 import { useClients } from '../../hooks/useClients';
@@ -16,13 +17,14 @@ const AgendaScreen: React.FC<NavProps> = ({ onNavigate }) => {
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [showOnboarding, setShowOnboarding] = useState(false);
     const { user } = useAuth();
+    const { tenantId } = useTenant();
     const { proactiveTip, setProactiveTip, searchServices } = useAI();
-    const { services } = useServices(); // Need services for the searchServices signature
+    const { services } = useServices(tenantId);
 
-    // For demo purposes, we won't pass a unitId yet, assuming single unit logic for MVP
-    const { appointments, loading, error, createAppointment } = useAppointments(selectedDate);
-    const { clients } = useClients();
-    const { staff } = useStaff();
+    // Pass tenantId to hooks
+    const { appointments, loading, error, createAppointment } = useAppointments(selectedDate, tenantId);
+    const { clients } = useClients(tenantId);
+    const { staff } = useStaff(tenantId);
 
     // New Appointment Modal State
     const [showNewApptModal, setShowNewApptModal] = useState(false);

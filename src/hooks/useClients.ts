@@ -11,26 +11,28 @@ export interface Client {
     last_visit_at: string;
 }
 
-export const useClients = () => {
+export const useClients = (tenantId?: string | null) => {
     const [clients, setClients] = useState<Client[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        fetchClients();
-    }, []);
+        if (tenantId) {
+            fetchClients();
+        } else {
+            setLoading(false);
+        }
+    }, [tenantId]);
 
     const fetchClients = async () => {
+        if (!tenantId) {
+            setError('Tenant não configurado');
+            return;
+        }
+
         try {
             setLoading(true);
             setError(null);
-
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) return;
-            // Get Tenant
-            const { data: profile } = await supabase.from('profiles').select('tenant_id').eq('id', user.id).single();
-            if (!profile?.tenant_id) return;
-            const tenantId = profile.tenant_id;
 
             const { data, error: err } = await supabase
                 .from('clients')
@@ -40,12 +42,12 @@ export const useClients = () => {
 
             if (err) throw err;
 
-            // Enhance data with calculated tags (Logic kept)
+            // Enhance data with calculated tags
             const enhancedClients = (data as Client[] || []).map(client => {
                 const tags = client.tags || [];
                 const now = new Date();
                 const lastVisit = client.last_visit_at ? new Date(client.last_visit_at) : null;
-                // ... (Existing Tag Logic Logic simplified for brevity or we can keep it)
+
                 if (lastVisit) {
                     const diffDays = Math.ceil(Math.abs(now.getTime() - lastVisit.getTime()) / (1000 * 60 * 60 * 24));
                     if (diffDays > 30 && !tags.includes('risk')) tags.push('risk');
@@ -69,7 +71,7 @@ export const useClients = () => {
         try {
             const { data, error } = await supabase
                 .from('appointments')
-                .select('*, service:services(*), staff:staff_id(*)') // simplified relation, assuming staff_id links to profiles
+                .select('*, service:services(*), staff:staff_id(*)')
                 .eq('client_id', clientId)
                 .order('start_time', { ascending: false });
 
@@ -82,15 +84,13 @@ export const useClients = () => {
     }
 
     const createClient = async (clientData: { name: string; phone: string; email?: string; notes?: string }) => {
+        if (!tenantId) {
+            return { success: false, error: 'Erro de configuração: tenant não carregado. Faça logout e login novamente.' };
+        }
+
         try {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) throw new Error('Usuário não autenticado');
-
-            const { data: profile } = await supabase.from('profiles').select('tenant_id').eq('id', user.id).single();
-            if (!profile?.tenant_id) throw new Error('Tenant não encontrado');
-
             const { data, error } = await supabase.from('clients').insert({
-                tenant_id: profile.tenant_id,
+                tenant_id: tenantId,
                 full_name: clientData.name,
                 phone: clientData.phone,
                 email: clientData.email || null,
@@ -110,3 +110,4 @@ export const useClients = () => {
 
     return { clients, loading, error, refetch: fetchClients, fetchClientHistory, createClient };
 };
+

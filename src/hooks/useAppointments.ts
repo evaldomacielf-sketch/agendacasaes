@@ -13,14 +13,14 @@ export interface Appointment {
     notes?: string;
 }
 
-export const useAppointments = (date: Date, unitId?: string) => {
+export const useAppointments = (date: Date, tenantId?: string | null, unitId?: string) => {
     const [appointments, setAppointments] = useState<Appointment[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         fetchAppointments();
-    }, [date, unitId]);
+    }, [date, tenantId, unitId]);
 
     const fetchAppointments = async () => {
         try {
@@ -48,6 +48,11 @@ export const useAppointments = (date: Date, unitId?: string) => {
                 .gte('start_time', startOfDay.toISOString())
                 .lte('start_time', endOfDay.toISOString())
                 .order('start_time', { ascending: true });
+
+            // Filter by tenant if available
+            if (tenantId) {
+                query = query.eq('tenant_id', tenantId);
+            }
 
             if (unitId) {
                 query = query.eq('unit_id', unitId);
@@ -92,15 +97,13 @@ export const useAppointments = (date: Date, unitId?: string) => {
         endTime: Date;
         notes?: string;
     }) => {
+        if (!tenantId) {
+            return { success: false, error: 'Erro de configuração: tenant não carregado. Faça logout e login novamente.' };
+        }
+
         try {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) throw new Error('Usuário não autenticado');
-
-            const { data: profile } = await supabase.from('profiles').select('tenant_id').eq('id', user.id).single();
-            if (!profile?.tenant_id) throw new Error('Tenant não encontrado');
-
             const { data, error } = await supabase.from('appointments').insert({
-                tenant_id: profile.tenant_id,
+                tenant_id: tenantId,
                 client_id: appointmentData.clientId,
                 service_id: appointmentData.serviceId,
                 staff_id: appointmentData.staffId,
@@ -123,3 +126,4 @@ export const useAppointments = (date: Date, unitId?: string) => {
 
     return { appointments, loading, error, refetch: fetchAppointments, createAppointment };
 };
+

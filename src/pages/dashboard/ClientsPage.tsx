@@ -2,9 +2,11 @@ import React, { useState } from 'react';
 import { NavProps, ScreenName } from '../../types';
 
 import { useClients } from '../../hooks/useClients';
+import { useTenant } from '../../contexts/TenantContext';
 
 const ClientsScreen: React.FC<NavProps> = ({ onNavigate }) => {
-    const { clients, loading, error, fetchClientHistory, createClient } = useClients();
+    const { tenantId, loading: tenantLoading } = useTenant();
+    const { clients, loading, error, fetchClientHistory, createClient } = useClients(tenantId);
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedClient, setSelectedClient] = useState<any | null>(null);
     const [clientHistory, setClientHistory] = useState<any[]>([]);

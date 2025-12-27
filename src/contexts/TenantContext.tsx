@@ -13,6 +13,7 @@ interface Tenant {
 
 interface TenantContextType {
     tenant: Tenant | null;
+    tenantId: string | null;  // Expose tenantId directly for easy access
     loading: boolean;
     error: string | null;
 }
@@ -20,51 +21,110 @@ interface TenantContextType {
 const TenantContext = createContext<TenantContextType | undefined>(undefined);
 
 export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const { profile } = useAuth();
+    const { profile, user } = useAuth();
     const [tenant, setTenant] = useState<Tenant | null>(null);
+    const [tenantId, setTenantId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         const fetchTenant = async () => {
-            if (!profile?.tenant_id) {
+            // First priority: get tenantId from profile
+            if (profile?.tenant_id) {
+                setTenantId(profile.tenant_id);
+
+                try {
+                    // Try to fetch tenant details from saloes table
+                    const { data: saloesData } = await supabase
+                        .from('saloes')
+                        .select('*')
+                        .eq('id', profile.tenant_id)
+                        .single();
+
+                    if (saloesData) {
+                        setTenant(saloesData as Tenant);
+                    } else {
+                        // Fallback: try tenants table
+                        const { data: tenantsData } = await supabase
+                            .from('tenants')
+                            .select('*')
+                            .eq('id', profile.tenant_id)
+                            .single();
+
+                        if (tenantsData) {
+                            setTenant(tenantsData as Tenant);
+                        }
+                    }
+                } catch (err: any) {
+                    console.warn('Error fetching tenant details:', err);
+                    // tenantId is still set from profile, just no tenant details
+                }
                 setLoading(false);
                 return;
             }
 
-            try {
-                // Fetch tenant details from 'saloes' (assuming this is the tenants table based on previous context)
-                // Adjust table name if it's strictly 'tenants' in a different schema, but 'saloes' was referenced in BookingPage.
-                const { data, error } = await supabase
-                    .from('saloes')
-                    .select('*')
-                    .eq('id', profile.tenant_id)
-                    .single();
+            // If no profile.tenant_id, try to create/assign a default tenant for this user
+            if (user && !profile?.tenant_id) {
+                try {
+                    // Check if there's a tenant in the system - use first available
+                    const { data: existingTenant } = await supabase
+                        .from('tenants')
+                        .select('id')
+                        .limit(1)
+                        .single();
 
-                if (error) {
-                    console.error('Error fetching tenant:', error);
-                    setError('Falha ao carregar dados do estabelecimento.');
-                    setTenant(null);
-                } else {
-                    setTenant(data as Tenant);
+                    if (existingTenant) {
+                        // Update the user's profile with this tenant_id
+                        await supabase
+                            .from('profiles')
+                            .update({ tenant_id: existingTenant.id })
+                            .eq('id', user.id);
+
+                        setTenantId(existingTenant.id);
+                        console.log('Assigned tenant to user:', existingTenant.id);
+                    } else {
+                        // Create a new default tenant
+                        const { data: newTenant, error: createError } = await supabase
+                            .from('tenants')
+                            .insert({
+                                name: 'Meu Salão',
+                                status: 'trial',
+                                plan: 'free'
+                            })
+                            .select('id')
+                            .single();
+
+                        if (newTenant && !createError) {
+                            // Assign to user profile
+                            await supabase
+                                .from('profiles')
+                                .update({ tenant_id: newTenant.id })
+                                .eq('id', user.id);
+
+                            setTenantId(newTenant.id);
+                            console.log('Created and assigned new tenant:', newTenant.id);
+                        }
+                    }
+                } catch (err: any) {
+                    console.error('Error setting up tenant:', err);
+                    setError('Não foi possível configurar o estabelecimento.');
                 }
-            } catch (err: any) {
-                console.error('Unexpected error fetching tenant:', err);
-                setError(err.message);
-            } finally {
-                setLoading(false);
             }
+
+            setLoading(false);
         };
 
-        if (profile) {
+        if (user) {
             fetchTenant();
         } else {
-            setLoading(false); // No profile, no tenant loading needed
+            setTenantId(null);
+            setTenant(null);
+            setLoading(false);
         }
-    }, [profile]);
+    }, [profile, user]);
 
     return (
-        <TenantContext.Provider value={{ tenant, loading, error }}>
+        <TenantContext.Provider value={{ tenant, tenantId, loading, error }}>
             {children}
         </TenantContext.Provider>
     );
