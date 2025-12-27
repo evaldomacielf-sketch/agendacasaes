@@ -78,7 +78,10 @@ const Navbar: React.FC<NavbarProps> = ({
                         {/* Progress Bar Background */}
                         <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-0.5 bg-gray-200 dark:bg-gray-700 -z-10"></div>
                         {/* Active Progress Bar */}
-                        <div className="absolute left-0 top-1/2 -translate-y-1/2 h-0.5 bg-primary -z-10 transition-all duration-500" style={{ width: `${((step.current - 1) / (step.total - 1)) * 100}%` }}></div>
+                        <div
+                            className="absolute left-0 top-1/2 -translate-y-1/2 h-0.5 bg-primary -z-10 transition-all duration-500"
+                            style={{ width: `${((step.current - 1) / (step.total - 1)) * 100}%` }}
+                        ></div>
 
                         {Array.from({ length: step.total }, (_, i) => i + 1).map((s) => {
                             const isActive = s === step.current;
