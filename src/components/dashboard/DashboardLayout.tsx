@@ -13,7 +13,11 @@ const SCREEN_TITLES: Record<string, string> = {
     '/dashboard/settings': 'Configurações',
 };
 
-const DashboardLayout: React.FC = () => {
+interface DashboardLayoutProps {
+    children?: React.ReactNode;
+}
+
+const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
     const { pathname } = useLocation();
     const title = SCREEN_TITLES[pathname] || 'AgendaCasaES';
 
@@ -54,7 +58,7 @@ const DashboardLayout: React.FC = () => {
                 {/* Main Content */}
                 <main className="flex-1 overflow-y-auto p-4 lg:p-8">
                     <div className="mx-auto max-w-6xl">
-                        <Outlet />
+                        {children || <Outlet />}
                     </div>
                 </main>
             </div>

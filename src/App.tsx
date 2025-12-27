@@ -31,48 +31,56 @@ const ServicesPage = React.lazy(() => import('./pages/dashboard/ServicesPage'));
 const ReportsPage = React.lazy(() => import('./pages/dashboard/ReportsPage'));
 const MarketingPage = React.lazy(() => import('./pages/dashboard/MarketingPage'));
 const SettingsPage = React.lazy(() => import('./pages/dashboard/SettingsPage'));
+const ProfessionalsPage = React.lazy(() => import('./pages/admin/Professionals'));
+import { TenantProvider } from './contexts/TenantContext';
 
 const App: React.FC = () => {
   return (
     <Sentry.ErrorBoundary fallback={({ error, resetError }) => <ErrorFallback error={error as Error} resetErrorBoundary={resetError} />}>
       <AuthProvider>
-        <BrowserRouter>
-          <div className="min-h-screen bg-background-light dark:bg-background-dark font-sans text-text-main">
-            <Suspense fallback={<LoadingSpinner />}>
-              <Routes>
-                {/* Public Routes */}
-                <Route path="/" element={<LandingPage />} />
-                <Route path="/features" element={<FeaturesPage />} />
-                <Route path="/target-audience" element={<TargetAudiencePage />} />
-                <Route path="/pricing" element={<PricingPage />} />
-                <Route path="/faq" element={<FAQPage />} />
-                <Route path="/testimonials" element={<TestimonialsPage />} />
-                <Route path="/booking" element={<BookingPage />} />
+        <TenantProvider>
+          <BrowserRouter>
+            <div className="min-h-screen bg-background-light dark:bg-background-dark font-sans text-text-main">
+              <Suspense fallback={<LoadingSpinner />}>
+                <Routes>
+                  {/* Public Routes */}
+                  <Route path="/" element={<LandingPage />} />
+                  <Route path="/features" element={<FeaturesPage />} />
+                  <Route path="/target-audience" element={<TargetAudiencePage />} />
+                  <Route path="/pricing" element={<PricingPage />} />
+                  <Route path="/faq" element={<FAQPage />} />
+                  <Route path="/testimonials" element={<TestimonialsPage />} />
+                  <Route path="/booking" element={<BookingPage />} />
 
-                {/* Auth Routes */}
-                <Route path="/login" element={<LoginPage />} />
-                <Route path="/signup" element={<SignupPage />} />
+                  {/* Auth Routes */}
+                  <Route path="/login" element={<LoginPage />} />
+                  <Route path="/signup" element={<SignupPage />} />
 
-                {/* Protected Dashboard Routes */}
-                <Route element={<ProtectedRoute />}>
-                  <Route path="/dashboard" element={<DashboardLayout />}>
-                    <Route index element={<OverviewPage />} />
-                    <Route path="agenda" element={<AgendaPage />} />
-                    <Route path="clients" element={<ClientsPage />} />
-                    <Route path="services" element={<ServicesPage />} />
-                    <Route path="financial" element={<FinancialPage />} />
-                    <Route path="marketing" element={<MarketingPage />} />
-                    <Route path="reports" element={<ReportsPage />} />
-                    <Route path="settings" element={<SettingsPage />} />
+                  {/* Protected Dashboard Routes */}
+                  <Route element={<ProtectedRoute />}>
+                    <Route path="/dashboard" element={<DashboardLayout />}>
+                      <Route index element={<OverviewPage />} />
+                      <Route path="agenda" element={<AgendaPage />} />
+                      <Route path="clients" element={<ClientsPage />} />
+                      <Route path="services" element={<ServicesPage />} />
+                      <Route path="financial" element={<FinancialPage />} />
+                      <Route path="marketing" element={<MarketingPage />} />
+                      <Route path="reports" element={<ReportsPage />} />
+                      <Route path="settings" element={<SettingsPage />} />
+                    </Route>
+
+                    {/* Explicit Top-Level Routes (Aliases for User Requirements) */}
+                    <Route path="/clients" element={<DashboardLayout><ClientsPage /></DashboardLayout>} />
+                    <Route path="/staff" element={<DashboardLayout><ProfessionalsPage /></DashboardLayout>} />
                   </Route>
-                </Route>
 
-                {/* Fallback */}
-                <Route path="*" element={<Navigate to="/" replace />} />
-              </Routes>
-            </Suspense>
-          </div>
-        </BrowserRouter>
+                  {/* Fallback */}
+                  <Route path="*" element={<Navigate to="/" replace />} />
+                </Routes>
+              </Suspense>
+            </div>
+          </BrowserRouter>
+        </TenantProvider>
       </AuthProvider>
     </Sentry.ErrorBoundary>
   );
