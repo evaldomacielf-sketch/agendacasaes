@@ -19,7 +19,7 @@ const AgendaScreen: React.FC<NavProps> = ({ onNavigate }) => {
     const { user } = useAuth();
     const { tenantId } = useTenant();
     const { proactiveTip, setProactiveTip, searchServices } = useAI();
-    const { services } = useServices(tenantId);
+    const { services } = useServices(tenantId ?? undefined);
 
     // Pass tenantId to hooks
     const { appointments, loading, error, createAppointment } = useAppointments(selectedDate, tenantId);
