@@ -2,28 +2,33 @@ import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTenant } from '../contexts/TenantContext';
 import LoadingSpinner from './LoadingSpinner';
+import TenantErrorScreen from './TenantErrorScreen';
 
 export const ProtectedRoute = () => {
     const { user, loading: authLoading } = useAuth();
-    // We can also check tenant status here if we want to force onboarding
-    // For now, we just ensure the provider is ready. The Provider inside App.tsx wraps this,
-    // so we can use the hook.
-    // However, ProtectedRoute is often used *inside* the layout that provides the context?
-    // Actually, usually Providers wrap the Routes.
-    // Let's assume App.tsx will wrap everything in TenantProvider.
+    const { tenantId, loading: tenantLoading, error: tenantError } = useTenant();
 
-    // Note: useTenant might throw if not wrapped. We'll ensure App.tsx wraps it.
-
+    // Still loading auth
     if (authLoading) {
         return <LoadingSpinner />;
     }
 
+    // Not authenticated
     if (!user) {
         return <Navigate to="/login" replace />;
     }
 
-    // Optional: We could check tenant loading here too if we wrapped it high enough
-    // but typically auth is enough for the route protection, and specific pages check tenant.
+    // Loading tenant
+    if (tenantLoading) {
+        return <LoadingSpinner />;
+    }
 
+    // Tenant error - show error screen with helpful message
+    if (tenantError && !tenantId) {
+        return <TenantErrorScreen error={tenantError} />;
+    }
+
+    // All good - render protected content
     return <Outlet />;
 };
+

@@ -4,100 +4,129 @@ import { supabase } from '../utils/supabaseClient';
 
 interface Tenant {
     id: string;
-    name: string;
-    slug?: string;
-    logo_url?: string;
-    plan?: string;
-    status: 'active' | 'inactive' | 'trial';
+    nome_salao: string;  // Match DB column name
+    plano?: string;
+    owner_id?: string;
 }
 
 interface TenantContextType {
     tenant: Tenant | null;
     tenantId: string | null;
+    tenantName: string | null;
     loading: boolean;
     error: string | null;
 }
 
 const TenantContext = createContext<TenantContextType | undefined>(undefined);
 
-// Default mock tenant for development/demo when DB tables don't exist
-const MOCK_TENANT: Tenant = {
-    id: 'demo-tenant-id',
-    name: 'Salão Demo',
-    status: 'trial',
-    plan: 'free'
-};
-
 export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const { profile, user, loading: authLoading } = useAuth();
     const [tenant, setTenant] = useState<Tenant | null>(null);
     const [tenantId, setTenantId] = useState<string | null>(null);
+    const [tenantName, setTenantName] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        // Set a timeout to prevent infinite loading
+        // Guard against infinite loading
         const timeout = setTimeout(() => {
             if (loading) {
-                console.warn('[TenantContext] Timeout reached, using mock tenant');
-                setTenantId(MOCK_TENANT.id);
-                setTenant(MOCK_TENANT);
+                console.warn('[TenantContext] Timeout reached');
+                setError('Tempo esgotado ao carregar estabelecimento');
                 setLoading(false);
             }
-        }, 5000); // 5 second timeout
+        }, 10000);
 
         const resolveTenant = async () => {
-            console.log('[TenantContext] Starting tenant resolution...', {
+            console.log('[TenantContext] Resolving tenant...', {
                 userId: user?.id,
                 authLoading,
                 profileTenantId: profile?.tenant_id
             });
 
-            // Wait for auth to load first
+            // Wait for auth to complete
             if (authLoading) {
-                console.log('[TenantContext] Auth still loading, waiting...');
                 return;
             }
 
-            // No user = no tenant needed
+            // No user logged in
             if (!user) {
-                console.log('[TenantContext] No user logged in');
+                console.log('[TenantContext] No user, clearing tenant');
                 setTenantId(null);
+                setTenantName(null);
                 setTenant(null);
+                setError(null);
                 setLoading(false);
                 return;
             }
 
-            // Case 1: Profile has tenant_id
+            // Try to get tenant from profile
             if (profile?.tenant_id) {
-                console.log('[TenantContext] Found tenant_id in profile:', profile.tenant_id);
+                console.log('[TenantContext] Profile has tenant_id:', profile.tenant_id);
                 setTenantId(profile.tenant_id);
 
-                // Try to get tenant details (but don't block on it)
+                // Fetch tenant details from saloes
                 try {
-                    const { data: tenantData } = await supabase
+                    const { data: salaoData, error: salaoError } = await supabase
                         .from('saloes')
                         .select('*')
                         .eq('id', profile.tenant_id)
                         .single();
 
-                    if (tenantData) {
-                        setTenant(tenantData as Tenant);
+                    if (salaoData && !salaoError) {
+                        console.log('[TenantContext] Loaded salao:', salaoData.nome_salao);
+                        setTenant(salaoData);
+                        setTenantName(salaoData.nome_salao);
+                        setError(null);
+                    } else {
+                        console.warn('[TenantContext] Could not load salao details');
+                        setTenantName('Meu Estabelecimento');
                     }
                 } catch (e) {
-                    console.warn('[TenantContext] Could not fetch tenant details (table may not exist)');
+                    console.warn('[TenantContext] Error fetching salao:', e);
+                    setTenantName('Meu Estabelecimento');
                 }
 
                 setLoading(false);
                 return;
             }
 
-            // Case 2: User logged in but no tenant_id in profile
-            // Use mock tenant for development/demo purposes
-            console.log('[TenantContext] No tenant_id in profile, using mock tenant');
-            setTenantId(MOCK_TENANT.id);
-            setTenant(MOCK_TENANT);
-            setError('Conta sem estabelecimento configurado. Usando dados de demonstração.');
+            // User logged in but no tenant_id - try to auto-provision
+            console.log('[TenantContext] No tenant_id in profile, attempting auto-provision...');
+            try {
+                const { data: newTenantId, error: rpcError } = await supabase
+                    .rpc('ensure_user_has_tenant', {
+                        user_id: user.id,
+                        user_email: user.email
+                    });
+
+                if (newTenantId && !rpcError) {
+                    console.log('[TenantContext] Auto-provisioned tenant:', newTenantId);
+                    setTenantId(newTenantId);
+
+                    // Fetch the new tenant details
+                    const { data: salaoData } = await supabase
+                        .from('saloes')
+                        .select('*')
+                        .eq('id', newTenantId)
+                        .single();
+
+                    if (salaoData) {
+                        setTenant(salaoData);
+                        setTenantName(salaoData.nome_salao);
+                    } else {
+                        setTenantName('Meu Estabelecimento');
+                    }
+                    setError(null);
+                } else {
+                    console.error('[TenantContext] Failed to auto-provision:', rpcError);
+                    setError('Não foi possível configurar seu estabelecimento. Contate o suporte.');
+                }
+            } catch (e: any) {
+                console.error('[TenantContext] Auto-provision error:', e);
+                setError('Erro ao configurar estabelecimento: ' + (e.message || 'Erro desconhecido'));
+            }
+
             setLoading(false);
         };
 
@@ -107,7 +136,7 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }, [profile, user, authLoading]);
 
     return (
-        <TenantContext.Provider value={{ tenant, tenantId, loading, error }}>
+        <TenantContext.Provider value={{ tenant, tenantId, tenantName, loading, error }}>
             {children}
         </TenantContext.Provider>
     );
@@ -120,4 +149,3 @@ export const useTenant = () => {
     }
     return context;
 };
-
