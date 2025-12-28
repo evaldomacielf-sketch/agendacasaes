@@ -84,27 +84,76 @@ export const useClients = (tenantId?: string | null) => {
     }
 
     const createClient = async (clientData: { name: string; phone: string; email?: string; notes?: string }) => {
+        // Debug: Log tenant status
+        console.log('[createClient] Called with:', {
+            tenantId,
+            clientData,
+            timestamp: new Date().toISOString()
+        });
+
         if (!tenantId) {
-            return { success: false, error: 'Erro de configuração: tenant não carregado. Faça logout e login novamente.' };
+            const errorMsg = 'Erro de configuração: tenant não carregado. Faça logout e login novamente.';
+            console.error('[createClient] ERROR: No tenantId available');
+            return { success: false, error: errorMsg };
         }
 
+        // Prepare payload - try 'name' column (more common) instead of 'full_name'
+        const payload = {
+            tenant_id: tenantId,
+            name: clientData.name,  // Changed from full_name to name
+            phone: clientData.phone,
+            email: clientData.email || null,
+            notes: clientData.notes || null
+        };
+
+        console.log('[createClient] Payload to insert:', payload);
+
         try {
-            const { data, error } = await supabase.from('clients').insert({
-                tenant_id: tenantId,
-                full_name: clientData.name,
-                phone: clientData.phone,
-                email: clientData.email || null,
-                notes: clientData.notes || null
-            }).select('id').single();
+            const { data, error } = await supabase
+                .from('clients')
+                .insert(payload)
+                .select('id')
+                .single();
 
-            if (error) throw error;
+            if (error) {
+                console.error('[createClient] Supabase error:', {
+                    code: error.code,
+                    message: error.message,
+                    details: error.details,
+                    hint: error.hint
+                });
 
-            // Refresh list after successful creation
+                // If 'name' column doesn't exist, try 'full_name'
+                if (error.message.includes('column') && error.message.includes('name')) {
+                    console.log('[createClient] Retrying with full_name column...');
+                    const retryPayload = { ...payload, full_name: payload.name };
+                    delete (retryPayload as any).name;
+
+                    const { data: retryData, error: retryError } = await supabase
+                        .from('clients')
+                        .insert(retryPayload)
+                        .select('id')
+                        .single();
+
+                    if (retryError) {
+                        console.error('[createClient] Retry also failed:', retryError);
+                        throw retryError;
+                    }
+
+                    await fetchClients();
+                    return { success: true, id: retryData.id };
+                }
+
+                throw error;
+            }
+
+            console.log('[createClient] SUCCESS! Created client:', data);
             await fetchClients();
             return { success: true, id: data.id };
         } catch (err: any) {
-            console.error('Error creating client:', err);
-            return { success: false, error: err.message };
+            const errorMessage = err.message || 'Erro desconhecido ao criar cliente';
+            console.error('[createClient] EXCEPTION:', err);
+            return { success: false, error: errorMessage };
         }
     };
 

@@ -29,41 +29,54 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     useEffect(() => {
         const fetchTenant = async () => {
+            console.log('[TenantContext] Starting tenant resolution...', {
+                userId: user?.id,
+                profileId: profile?.id,
+                profileTenantId: profile?.tenant_id
+            });
+
             // First priority: get tenantId from profile
             if (profile?.tenant_id) {
+                console.log('[TenantContext] Found tenant_id in profile:', profile.tenant_id);
                 setTenantId(profile.tenant_id);
 
                 try {
                     // Try to fetch tenant details from saloes table
-                    const { data: saloesData } = await supabase
+                    const { data: saloesData, error: saloesError } = await supabase
                         .from('saloes')
                         .select('*')
                         .eq('id', profile.tenant_id)
                         .single();
 
                     if (saloesData) {
+                        console.log('[TenantContext] Found tenant in saloes:', saloesData.id);
                         setTenant(saloesData as Tenant);
                     } else {
+                        console.log('[TenantContext] saloes query failed:', saloesError?.message);
                         // Fallback: try tenants table
-                        const { data: tenantsData } = await supabase
+                        const { data: tenantsData, error: tenantsError } = await supabase
                             .from('tenants')
                             .select('*')
                             .eq('id', profile.tenant_id)
                             .single();
 
                         if (tenantsData) {
+                            console.log('[TenantContext] Found tenant in tenants table:', tenantsData.id);
                             setTenant(tenantsData as Tenant);
+                        } else {
+                            console.log('[TenantContext] tenants query also failed:', tenantsError?.message);
                         }
                     }
                 } catch (err: any) {
-                    console.warn('Error fetching tenant details:', err);
-                    // tenantId is still set from profile, just no tenant details
+                    console.warn('[TenantContext] Error fetching tenant details:', err);
                 }
                 setLoading(false);
                 return;
             }
 
-            // If no profile.tenant_id, try to create/assign a default tenant for this user
+            // If no profile or no tenant_id, log the current state
+            console.log('[TenantContext] No tenant_id in profile. Profile state:', profile);
+
             if (user && !profile?.tenant_id) {
                 try {
                     // Check if there's a tenant in the system - use first available

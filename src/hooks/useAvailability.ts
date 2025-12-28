@@ -8,69 +8,98 @@ export interface TimeSlot {
 
 export const useAvailability = (date: Date, professionalId: string | null, tenantId?: string) => {
     const [slots, setSlots] = useState<TimeSlot[]>([]);
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        if (tenantId) {
-            generateSlots();
-        }
+        // Always generate slots - with or without tenantId
+        generateSlots();
     }, [date, professionalId, tenantId]);
 
     const generateSlots = async () => {
         setLoading(true);
+        console.log('[useAvailability] Generating slots for:', {
+            date: date.toISOString(),
+            professionalId,
+            tenantId
+        });
+
         try {
-            // 1. Define Range for the selected day
-            const startOfDay = new Date(date);
-            startOfDay.setHours(0, 0, 0, 0);
-            const endOfDay = new Date(date);
-            endOfDay.setHours(23, 59, 59, 999);
-
-            // 2. Fetch existing appointments
-            let query = supabase
-                .from('appointments')
-                .select('start_time, end_time')
-                .eq('tenant_id', tenantId)
-                .gte('start_time', startOfDay.toISOString())
-                .lte('start_time', endOfDay.toISOString())
-                .neq('status', 'cancelled');
-
-            if (professionalId) {
-                query = query.eq('staff_id', professionalId);
-            }
-
-            const { data: busySlots, error } = await query;
-
-            if (error) throw error;
-
-            // 3. Generate all possible slots (09:00 - 20:00)
-            const generated: TimeSlot[] = [];
+            // Define working hours: 09:00 - 20:00
             const startHour = 9;
             const endHour = 20;
+
+            // Generate all possible slots first
+            const allSlots: TimeSlot[] = [];
+            const now = new Date();
+            const isToday = date.toDateString() === now.toDateString();
 
             for (let h = startHour; h < endHour; h++) {
                 // :00
                 const timeString00 = `${h.toString().padStart(2, '0')}:00`;
-                generated.push({
-                    time: timeString00,
-                    available: !isTimeBusy(timeString00, date, busySlots || [])
-                });
+                const slot00Time = new Date(date);
+                slot00Time.setHours(h, 0, 0, 0);
+
+                // Skip past slots if today
+                if (!isToday || slot00Time > now) {
+                    allSlots.push({ time: timeString00, available: true });
+                }
 
                 // :30
                 const timeString30 = `${h.toString().padStart(2, '0')}:30`;
-                generated.push({
-                    time: timeString30,
-                    available: !isTimeBusy(timeString30, date, busySlots || [])
-                });
+                const slot30Time = new Date(date);
+                slot30Time.setHours(h, 30, 0, 0);
+
+                if (!isToday || slot30Time > now) {
+                    allSlots.push({ time: timeString30, available: true });
+                }
             }
 
-            setSlots(generated);
+            // If tenantId is available, fetch busy slots to mark as unavailable
+            if (tenantId) {
+                const startOfDay = new Date(date);
+                startOfDay.setHours(0, 0, 0, 0);
+                const endOfDay = new Date(date);
+                endOfDay.setHours(23, 59, 59, 999);
+
+                let query = supabase
+                    .from('appointments')
+                    .select('start_time, end_time')
+                    .eq('tenant_id', tenantId)
+                    .gte('start_time', startOfDay.toISOString())
+                    .lte('start_time', endOfDay.toISOString())
+                    .neq('status', 'cancelled');
+
+                if (professionalId) {
+                    query = query.eq('staff_id', professionalId);
+                }
+
+                const { data: busySlots, error } = await query;
+
+                if (!error && busySlots) {
+                    console.log('[useAvailability] Found busy slots:', busySlots.length);
+                    // Mark busy slots as unavailable
+                    allSlots.forEach(slot => {
+                        if (isTimeBusy(slot.time, date, busySlots)) {
+                            slot.available = false;
+                        }
+                    });
+                } else if (error) {
+                    console.warn('[useAvailability] Error fetching appointments:', error.message);
+                    // Continue with all slots available
+                }
+            } else {
+                console.log('[useAvailability] No tenantId, returning all slots as available');
+            }
+
+            console.log('[useAvailability] Generated slots:', allSlots.length);
+            setSlots(allSlots);
         } catch (err) {
-            console.error("Error fetching availability:", err);
-            // Fallback: Generate random availability for demo if DB fails or empty
+            console.error("[useAvailability] Error:", err);
+            // Fallback: Generate all slots as available
             const generated: TimeSlot[] = [];
             for (let h = 9; h < 20; h++) {
-                generated.push({ time: `${h}:00`, available: true });
-                generated.push({ time: `${h}:30`, available: true });
+                generated.push({ time: `${h.toString().padStart(2, '0')}:00`, available: true });
+                generated.push({ time: `${h.toString().padStart(2, '0')}:30`, available: true });
             }
             setSlots(generated);
         } finally {
@@ -83,8 +112,6 @@ export const useAvailability = (date: Date, professionalId: string | null, tenan
         const slotTime = new Date(dateObj);
         slotTime.setHours(h, m, 0, 0);
 
-        // Check if any existing appointment overlaps this slot (simple logic: start_time matches)
-        // A more robust logic would check duration, but for MVP slot matching is usually sufficient if fixed grid.
         return busySlots.some(appt => {
             const apptStart = new Date(appt.start_time);
             return apptStart.getHours() === slotTime.getHours() && apptStart.getMinutes() === slotTime.getMinutes();
@@ -93,3 +120,4 @@ export const useAvailability = (date: Date, professionalId: string | null, tenan
 
     return { slots, loading };
 };
+
