@@ -4,9 +4,10 @@ import { supabase } from '../utils/supabaseClient';
 
 interface Tenant {
     id: string;
-    nome_salao: string;  // Match DB column name
+    nome_salao: string;
     plano?: string;
     owner_id?: string;
+    category?: string;
 }
 
 interface TenantContextType {
@@ -15,6 +16,8 @@ interface TenantContextType {
     tenantName: string | null;
     loading: boolean;
     error: string | null;
+    needsTenantSelection: boolean;
+    selectTenant: (id: string, name: string) => void;
 }
 
 const TenantContext = createContext<TenantContextType | undefined>(undefined);
@@ -26,6 +29,17 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const [tenantName, setTenantName] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [needsTenantSelection, setNeedsTenantSelection] = useState(false);
+
+    // Function to manually select a tenant
+    const selectTenant = (id: string, name: string) => {
+        console.log('[TenantContext] Manually selecting tenant:', id, name);
+        setTenantId(id);
+        setTenantName(name);
+        setTenant({ id, nome_salao: name });
+        setNeedsTenantSelection(false);
+        setError(null);
+    };
 
     useEffect(() => {
         // Guard against infinite loading
@@ -56,6 +70,7 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 setTenantName(null);
                 setTenant(null);
                 setError(null);
+                setNeedsTenantSelection(false);
                 setLoading(false);
                 return;
             }
@@ -87,20 +102,44 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                     setTenantName('Meu Estabelecimento');
                 }
 
+                setNeedsTenantSelection(false);
                 setLoading(false);
                 return;
             }
 
-            // User logged in but no tenant_id - try to auto-provision
-            console.log('[TenantContext] No tenant_id in profile, attempting auto-provision...');
+            // User logged in but no tenant_id - check if they have multiple tenants
+            console.log('[TenantContext] No tenant_id in profile, checking for tenants...');
             try {
-                const { data: newTenantId, error: rpcError } = await supabase
+                // Try RPC to get user's tenants
+                const { data: userTenants, error: rpcError } = await supabase.rpc('get_user_tenants');
+
+                if (userTenants && !rpcError && userTenants.length > 0) {
+                    if (userTenants.length === 1) {
+                        // Only one tenant - auto-select it
+                        console.log('[TenantContext] Auto-selecting single tenant');
+                        const t = userTenants[0];
+                        selectTenant(t.tenant_id, t.nome_salao);
+
+                        // Update profile
+                        await supabase.rpc('set_active_tenant', { p_tenant_id: t.tenant_id });
+                    } else {
+                        // Multiple tenants - need selection
+                        console.log('[TenantContext] Multiple tenants, needs selection');
+                        setNeedsTenantSelection(true);
+                    }
+                    setLoading(false);
+                    return;
+                }
+
+                // No tenants via RPC - try auto-provision
+                console.log('[TenantContext] No tenants found, attempting auto-provision...');
+                const { data: newTenantId, error: provisionError } = await supabase
                     .rpc('ensure_user_has_tenant', {
                         user_id: user.id,
                         user_email: user.email
                     });
 
-                if (newTenantId && !rpcError) {
+                if (newTenantId && !provisionError) {
                     console.log('[TenantContext] Auto-provisioned tenant:', newTenantId);
                     setTenantId(newTenantId);
 
@@ -119,12 +158,12 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                     }
                     setError(null);
                 } else {
-                    console.error('[TenantContext] Failed to auto-provision:', rpcError);
-                    setError('Não foi possível configurar seu estabelecimento. Contate o suporte.');
+                    console.error('[TenantContext] Failed to auto-provision:', provisionError);
+                    setNeedsTenantSelection(true); // Let user go to selection page
                 }
             } catch (e: any) {
-                console.error('[TenantContext] Auto-provision error:', e);
-                setError('Erro ao configurar estabelecimento: ' + (e.message || 'Erro desconhecido'));
+                console.error('[TenantContext] Error resolving tenant:', e);
+                setNeedsTenantSelection(true);
             }
 
             setLoading(false);
@@ -136,7 +175,15 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }, [profile, user, authLoading]);
 
     return (
-        <TenantContext.Provider value={{ tenant, tenantId, tenantName, loading, error }}>
+        <TenantContext.Provider value={{
+            tenant,
+            tenantId,
+            tenantName,
+            loading,
+            error,
+            needsTenantSelection,
+            selectTenant
+        }}>
             {children}
         </TenantContext.Provider>
     );

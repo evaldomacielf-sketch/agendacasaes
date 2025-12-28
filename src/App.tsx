@@ -21,6 +21,7 @@ const PricingPage = React.lazy(() => import('./pages/PricingPage'));
 const FAQPage = React.lazy(() => import('./pages/FAQPage'));
 const TestimonialsPage = React.lazy(() => import('./pages/TestimonialsPage'));
 const BookingPage = React.lazy(() => import('./pages/BookingPage'));
+const TenantSelectionPage = React.lazy(() => import('./pages/TenantSelectionPage'));
 
 // Dashboard Pages - Lazy Loaded
 const OverviewPage = React.lazy(() => import('./pages/dashboard/OverviewPage'));
@@ -55,6 +56,9 @@ const App: React.FC = () => {
                   {/* Auth Routes */}
                   <Route path="/login" element={<LoginPage />} />
                   <Route path="/signup" element={<SignupPage />} />
+
+                  {/* Tenant Selection (Protected but outside ProtectedRoute to avoid loop) */}
+                  <Route path="/select-tenant" element={<TenantSelectionPage />} />
 
                   {/* Protected Dashboard Routes */}
                   <Route element={<ProtectedRoute />}>
