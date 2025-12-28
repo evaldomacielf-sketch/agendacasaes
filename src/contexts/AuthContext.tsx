@@ -26,59 +26,86 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [profile, setProfile] = useState<UserProfile | null>(null);
     const [loading, setLoading] = useState(true);
 
-    const fetchProfile = async (userId: string) => {
+    // Fetch profile with timeout to prevent hanging
+    const fetchProfile = async (userId: string): Promise<UserProfile | null> => {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+
         try {
             const { data, error } = await supabase
                 .from('profiles')
                 .select('*')
                 .eq('id', userId)
-                .single();
+                .single()
+                .abortSignal(controller.signal);
+
+            clearTimeout(timeoutId);
 
             if (error) {
-                console.error('Error fetching profile:', error);
+                console.warn('[AuthContext] Profile fetch error:', error.message);
                 return null;
             }
+            console.log('[AuthContext] Profile loaded:', data?.id);
             return data as UserProfile;
-        } catch (error) {
-            console.error('Unexpected error fetching profile:', error);
+        } catch (error: any) {
+            clearTimeout(timeoutId);
+            if (error.name === 'AbortError') {
+                console.warn('[AuthContext] Profile fetch timed out');
+            } else {
+                console.error('[AuthContext] Unexpected error fetching profile:', error);
+            }
             return null;
         }
     };
 
     useEffect(() => {
-        // 1. Verificar sessão ativa ao carregar o app
-        const initializeAuth = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
-            setSession(session);
-            setUser(session?.user ?? null);
-
-            if (session?.user) {
-                const userProfile = await fetchProfile(session.user.id);
-                setProfile(userProfile);
-
-                // Set Sentry user context for error tracking
-                Sentry.setUser({
-                    id: session.user.id,
-                    email: session.user.email,
-                });
-                if (userProfile?.tenant_id) {
-                    Sentry.setTag("tenant_id", userProfile.tenant_id);
-                }
+        // Guard against infinite loading - force complete after 8 seconds
+        const loadingTimeout = setTimeout(() => {
+            if (loading) {
+                console.warn('[AuthContext] Forced loading complete after timeout');
+                setLoading(false);
             }
+        }, 8000);
 
-            setLoading(false);
+        const initializeAuth = async () => {
+            console.log('[AuthContext] Initializing auth...');
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                console.log('[AuthContext] Session:', session ? 'exists' : 'none');
+
+                setSession(session);
+                setUser(session?.user ?? null);
+
+                if (session?.user) {
+                    const userProfile = await fetchProfile(session.user.id);
+                    setProfile(userProfile);
+
+                    // Set Sentry user context for error tracking
+                    Sentry.setUser({
+                        id: session.user.id,
+                        email: session.user.email,
+                    });
+                    if (userProfile?.tenant_id) {
+                        Sentry.setTag("tenant_id", userProfile.tenant_id);
+                    }
+                }
+            } catch (error) {
+                console.error('[AuthContext] Error during initialization:', error);
+            } finally {
+                setLoading(false);
+                clearTimeout(loadingTimeout);
+            }
         };
 
         initializeAuth();
 
-        // 2. Ouvir mudanças no estado de autenticação (Login, Logout, Token Refresh)
+        // Listen for auth state changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+            console.log('[AuthContext] Auth state changed:', _event);
             setSession(session);
             setUser(session?.user ?? null);
 
             if (session?.user) {
-                // Fetch profile on login if not already loaded
-                // Simple check: if we just logged in and profile is null or id mismatch
                 if (!profile || profile.id !== session.user.id) {
                     const userProfile = await fetchProfile(session.user.id);
                     setProfile(userProfile);
@@ -92,8 +119,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         return () => {
             subscription.unsubscribe();
+            clearTimeout(loadingTimeout);
         };
-    }, []); // Removed 'profile' dependency to avoid loops, logic handled inside effect
+    }, []);
 
     const signOut = async () => {
         await supabase.auth.signOut();
