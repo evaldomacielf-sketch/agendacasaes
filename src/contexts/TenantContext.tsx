@@ -13,128 +13,98 @@ interface Tenant {
 
 interface TenantContextType {
     tenant: Tenant | null;
-    tenantId: string | null;  // Expose tenantId directly for easy access
+    tenantId: string | null;
     loading: boolean;
     error: string | null;
 }
 
 const TenantContext = createContext<TenantContextType | undefined>(undefined);
 
+// Default mock tenant for development/demo when DB tables don't exist
+const MOCK_TENANT: Tenant = {
+    id: 'demo-tenant-id',
+    name: 'Salão Demo',
+    status: 'trial',
+    plan: 'free'
+};
+
 export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const { profile, user } = useAuth();
+    const { profile, user, loading: authLoading } = useAuth();
     const [tenant, setTenant] = useState<Tenant | null>(null);
     const [tenantId, setTenantId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        const fetchTenant = async () => {
+        // Set a timeout to prevent infinite loading
+        const timeout = setTimeout(() => {
+            if (loading) {
+                console.warn('[TenantContext] Timeout reached, using mock tenant');
+                setTenantId(MOCK_TENANT.id);
+                setTenant(MOCK_TENANT);
+                setLoading(false);
+            }
+        }, 5000); // 5 second timeout
+
+        const resolveTenant = async () => {
             console.log('[TenantContext] Starting tenant resolution...', {
                 userId: user?.id,
-                profileId: profile?.id,
+                authLoading,
                 profileTenantId: profile?.tenant_id
             });
 
-            // First priority: get tenantId from profile
+            // Wait for auth to load first
+            if (authLoading) {
+                console.log('[TenantContext] Auth still loading, waiting...');
+                return;
+            }
+
+            // No user = no tenant needed
+            if (!user) {
+                console.log('[TenantContext] No user logged in');
+                setTenantId(null);
+                setTenant(null);
+                setLoading(false);
+                return;
+            }
+
+            // Case 1: Profile has tenant_id
             if (profile?.tenant_id) {
                 console.log('[TenantContext] Found tenant_id in profile:', profile.tenant_id);
                 setTenantId(profile.tenant_id);
 
+                // Try to get tenant details (but don't block on it)
                 try {
-                    // Try to fetch tenant details from saloes table
-                    const { data: saloesData, error: saloesError } = await supabase
+                    const { data: tenantData } = await supabase
                         .from('saloes')
                         .select('*')
                         .eq('id', profile.tenant_id)
                         .single();
 
-                    if (saloesData) {
-                        console.log('[TenantContext] Found tenant in saloes:', saloesData.id);
-                        setTenant(saloesData as Tenant);
-                    } else {
-                        console.log('[TenantContext] saloes query failed:', saloesError?.message);
-                        // Fallback: try tenants table
-                        const { data: tenantsData, error: tenantsError } = await supabase
-                            .from('tenants')
-                            .select('*')
-                            .eq('id', profile.tenant_id)
-                            .single();
-
-                        if (tenantsData) {
-                            console.log('[TenantContext] Found tenant in tenants table:', tenantsData.id);
-                            setTenant(tenantsData as Tenant);
-                        } else {
-                            console.log('[TenantContext] tenants query also failed:', tenantsError?.message);
-                        }
+                    if (tenantData) {
+                        setTenant(tenantData as Tenant);
                     }
-                } catch (err: any) {
-                    console.warn('[TenantContext] Error fetching tenant details:', err);
+                } catch (e) {
+                    console.warn('[TenantContext] Could not fetch tenant details (table may not exist)');
                 }
+
                 setLoading(false);
                 return;
             }
 
-            // If no profile or no tenant_id, log the current state
-            console.log('[TenantContext] No tenant_id in profile. Profile state:', profile);
-
-            if (user && !profile?.tenant_id) {
-                try {
-                    // Check if there's a tenant in the system - use first available
-                    const { data: existingTenant } = await supabase
-                        .from('tenants')
-                        .select('id')
-                        .limit(1)
-                        .single();
-
-                    if (existingTenant) {
-                        // Update the user's profile with this tenant_id
-                        await supabase
-                            .from('profiles')
-                            .update({ tenant_id: existingTenant.id })
-                            .eq('id', user.id);
-
-                        setTenantId(existingTenant.id);
-                        console.log('Assigned tenant to user:', existingTenant.id);
-                    } else {
-                        // Create a new default tenant
-                        const { data: newTenant, error: createError } = await supabase
-                            .from('tenants')
-                            .insert({
-                                name: 'Meu Salão',
-                                status: 'trial',
-                                plan: 'free'
-                            })
-                            .select('id')
-                            .single();
-
-                        if (newTenant && !createError) {
-                            // Assign to user profile
-                            await supabase
-                                .from('profiles')
-                                .update({ tenant_id: newTenant.id })
-                                .eq('id', user.id);
-
-                            setTenantId(newTenant.id);
-                            console.log('Created and assigned new tenant:', newTenant.id);
-                        }
-                    }
-                } catch (err: any) {
-                    console.error('Error setting up tenant:', err);
-                    setError('Não foi possível configurar o estabelecimento.');
-                }
-            }
-
+            // Case 2: User logged in but no tenant_id in profile
+            // Use mock tenant for development/demo purposes
+            console.log('[TenantContext] No tenant_id in profile, using mock tenant');
+            setTenantId(MOCK_TENANT.id);
+            setTenant(MOCK_TENANT);
+            setError('Conta sem estabelecimento configurado. Usando dados de demonstração.');
             setLoading(false);
         };
 
-        if (user) {
-            fetchTenant();
-        } else {
-            setTenantId(null);
-            setTenant(null);
-            setLoading(false);
-        }
-    }, [profile, user]);
+        resolveTenant();
+
+        return () => clearTimeout(timeout);
+    }, [profile, user, authLoading]);
 
     return (
         <TenantContext.Provider value={{ tenant, tenantId, loading, error }}>
@@ -150,3 +120,4 @@ export const useTenant = () => {
     }
     return context;
 };
+

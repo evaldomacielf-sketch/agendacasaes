@@ -74,10 +74,10 @@ export const useServices = (tenantId?: string) => {
             setLoading(true);
             setError(null);
 
+            // Simple query without is_active filter (column may not exist)
             let query = supabase
                 .from('services')
                 .select('*')
-                .eq('is_active', true)
                 .order('name', { ascending: true });
 
             // Filter by tenant if provided
@@ -89,22 +89,23 @@ export const useServices = (tenantId?: string) => {
 
             if (err) {
                 // RLS or connection error - fallback to mock
-                console.warn('Supabase error fetching services, using mock data:', err.message);
+                console.warn('[useServices] Supabase error, using mock data:', err.message);
                 setServices(MOCK_SERVICES);
-                // Don't set error - we have fallback data
                 setLoading(false);
                 return;
             }
 
             if (!data || data.length === 0) {
                 // No services in DB - use mock for demo
-                console.info("No services found in database, using demo data.");
+                console.info("[useServices] No services found in database, using demo data.");
                 setServices(MOCK_SERVICES);
             } else {
-                setServices(data as Service[]);
+                // Filter by is_active if the column exists, otherwise use all
+                const activeServices = data.filter((s: any) => s.is_active !== false && s.active !== false);
+                setServices(activeServices.length > 0 ? activeServices as Service[] : (data as Service[]));
             }
         } catch (err: any) {
-            console.error('Unexpected error fetching services:', err);
+            console.error('[useServices] Unexpected error:', err);
             // Always fallback to mock on any error
             setServices(MOCK_SERVICES);
         } finally {
